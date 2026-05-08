@@ -11,6 +11,8 @@
         <link rel="stylesheet" href="css/L.Control.Locate.min.css">
         <link rel="stylesheet" href="css/qgis2web.css">
         <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/filter.css">
+<link rel="stylesheet" href="css/nouislider.min.css">
         <link rel="stylesheet" href="css/leaflet.photon.css">
         <link rel="stylesheet" href="css/leaflet-measure.css">
         <style>
@@ -40,6 +42,9 @@
         <script src="js/labels.js"></script>
         <script src="js/leaflet.photon.js"></script>
         <script src="js/leaflet-measure.js"></script>
+        <script src="js/tailDT.js"></script>
+<script src="js/nouislider.min.js"></script>
+<script src="js/wNumb.js"></script>
         <script src="data/GESTINPMTMAESTRA_1.js"></script>
         <script src="data/CERCANA120m_2.js"></script>
         <script src="data/INTERFERENCIAREAL_3.js"></script>
@@ -62,7 +67,7 @@
         }
         var map = L.map('map', {
             zoomControl:false, maxZoom:28, minZoom:1
-        }).fitBounds([[6.182833509526215,-75.61010792341717],[6.196206699691469,-75.55307990642814]]);
+        }).fitBounds([[6.163624958863995,-75.62745518293293],[6.1950379603913825,-75.5573847329234]]);
         var hash = new L.Hash(map);
         map.attributionControl.setPrefix('<a href="https://github.com/qgis2web/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
         var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
@@ -193,8 +198,7 @@
                         <td class="visible-with-data" id="contratista">' + (feature.properties['contratista'] !== null ? autolinker.link(String(feature.properties['contratista']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
                     </tr>\
                     <tr>\
-                        <th scope="row">direccion</th>\
-                        <td class="visible-with-data" id="direccion">' + (feature.properties['direccion'] !== null ? autolinker.link(String(feature.properties['direccion']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                        <td colspan="2">' + (feature.properties['direccion'] !== null ? autolinker.link(String(feature.properties['direccion']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
                     </tr>\
                     <tr>\
                         <th scope="row">proyecto</th>\
@@ -348,20 +352,7 @@
                         <td class="visible-with-data" id="FRENTES">' + (feature.properties['FRENTES'] !== null ? autolinker.link(String(feature.properties['FRENTES']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
                     </tr>\
                     <tr>\
-                        <th scope="row">TIPO</th>\
-                        <td class="visible-with-data" id="TIPO">' + (feature.properties['TIPO'] !== null ? autolinker.link(String(feature.properties['TIPO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <th scope="row">INICIO_CONF</th>\
-                        <td class="visible-with-data" id="INICIO_CONF">' + (feature.properties['INICIO_CONF'] !== null ? autolinker.link(String(feature.properties['INICIO_CONF']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <th scope="row">FIN_CONF</th>\
-                        <td class="visible-with-data" id="FIN_CONF">' + (feature.properties['FIN_CONF'] !== null ? autolinker.link(String(feature.properties['FIN_CONF']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <th scope="row">DURACION</th>\
-                        <td class="visible-with-data" id="DURACION">' + (feature.properties['DURACION'] !== null ? autolinker.link(String(feature.properties['DURACION']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                        <td colspan="2">' + (feature.properties['TIPO'] !== null ? autolinker.link(String(feature.properties['TIPO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
                     </tr>\
                 </table>';
             var content = removeEmptyRowsFromPopupContent(popupContent, feature);
@@ -428,20 +419,7 @@
                         <td class="visible-with-data" id="FRENTES">' + (feature.properties['FRENTES'] !== null ? autolinker.link(String(feature.properties['FRENTES']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
                     </tr>\
                     <tr>\
-                        <th scope="row">TIPO</th>\
-                        <td class="visible-with-data" id="TIPO">' + (feature.properties['TIPO'] !== null ? autolinker.link(String(feature.properties['TIPO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <th scope="row">INICIO_CONF</th>\
-                        <td class="visible-with-data" id="INICIO_CONF">' + (feature.properties['INICIO_CONF'] !== null ? autolinker.link(String(feature.properties['INICIO_CONF']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <th scope="row">FIN_CONF</th>\
-                        <td class="visible-with-data" id="FIN_CONF">' + (feature.properties['FIN_CONF'] !== null ? autolinker.link(String(feature.properties['FIN_CONF']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <th scope="row">DURACION</th>\
-                        <td class="visible-with-data" id="DURACION">' + (feature.properties['DURACION'] !== null ? autolinker.link(String(feature.properties['DURACION']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                        <td colspan="2">' + (feature.properties['TIPO'] !== null ? autolinker.link(String(feature.properties['TIPO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
                     </tr>\
                 </table>';
             var content = removeEmptyRowsFromPopupContent(popupContent, feature);
@@ -549,6 +527,636 @@
         });
         lay.addTo(map);
         setBounds();
+        var mapDiv = document.getElementById('map');
+        var row = document.createElement('div');
+        row.className="row";
+        row.id="all";
+        row.style.height = "100%";
+        var col1 = document.createElement('div');
+        col1.className="col9";
+        col1.id = "mapWindow";
+        col1.style.height = "99%";
+        col1.style.width = "80%";
+        col1.style.display = "inline-block";
+        var col2 = document.createElement('div');
+        col2.className="col3";
+        col2.id = "menu";
+        col2.style.display = "inline-block";
+        mapDiv.parentNode.insertBefore(row, mapDiv);
+        document.getElementById("all").appendChild(col1);
+        document.getElementById("all").appendChild(col2);
+        col1.appendChild(mapDiv)
+        var Filters = {"fecha_fin": "date","fecha_inicio": "date","TIPO": "str","tipo_cierre": "str","FRENTES": "str","proyecto": "str","contratista": "str","contrato": "str","CONTRATOS": "str","frente": "str","kmz_origen": "str"};
+        function filterFunc() {
+          map.eachLayer(function(lyr){
+          if ("options" in lyr && "dataVar" in lyr["options"]){
+            features = this[lyr["options"]["dataVar"]].features.slice(0);
+            try{
+              for (key in Filters){
+                keyS = key.replace(/[^a-zA-Z0-9_]/g, "")
+                if (Filters[key] == "str" || Filters[key] == "bool"){
+                  var selection = [];
+                  var options = document.getElementById("sel_" + keyS).options
+                  for (var i=0; i < options.length; i++) {
+                    if (options[i].selected) selection.push(options[i].value);
+                  }
+                    try{
+                      if (key in features[0].properties){
+                        for (i = features.length - 1;
+                          i >= 0; --i){
+                          if (selection.indexOf(
+                          features[i].properties[key])<0
+                          && selection.length>0) {
+                          features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                  }
+                }
+                if (Filters[key] == "int"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (parseInt(features[i].properties[key])
+                          < sliderVals[0]
+                          || parseInt(features[i].properties[key])
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "real"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (features[i].properties[key]
+                          < sliderVals[0]
+                          || features[i].properties[key]
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "date"
+                  || Filters[key] == "datetime"
+                  || Filters[key] == "time"){
+                  try{
+                    if (key in features[0].properties){
+                      HTMLkey = key.replace(/[&\/\\#,+()$~%.'":*?<>{} ]/g, '');
+                      startdate = document.getElementById("dat_" +
+                        HTMLkey + "_date1").value.replace(" ", "T");
+                      enddate = document.getElementById("dat_" +
+                        HTMLkey + "_date2").value.replace(" ", "T");
+                      for (i = features.length - 1; i >= 0; --i){
+                        if (features[i].properties[key] < startdate
+                          || features[i].properties[key] > enddate){
+                          features.splice(i,1);
+                        }
+                      }
+                    }
+                  } catch(err){
+                  }
+                }
+              }
+            } catch(err){
+            }
+          this[lyr["options"]["layerName"]].clearLayers();
+          this[lyr["options"]["layerName"]].addData(features);
+          }
+          })
+        }
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_fecha_fin_date1 = document.createElement("div");
+            div_fecha_fin_date1.id = "div_fecha_fin_date1";
+            div_fecha_fin_date1.className= "filterselect";
+            document.getElementById("menu").appendChild(div_fecha_fin_date1);
+            dat_fecha_fin_date1 = document.createElement('input');
+            dat_fecha_fin_date1.type = "text";
+            dat_fecha_fin_date1.id = "dat_fecha_fin_date1";
+            div_fecha_fin_date1.appendChild(dat_fecha_fin_date1);
+            var lab_fecha_fin_date1 = document.createElement('div');
+            lab_fecha_fin_date1.innerHTML  = 'fecha_fin from';
+            lab_fecha_fin_date1.className = 'filterlabel';
+            document.getElementById("div_fecha_fin_date1").appendChild(
+                lab_fecha_fin_date1);
+            var reset_fecha_fin_date1 = document.createElement('div');
+            reset_fecha_fin_date1.innerHTML = "clear";
+            reset_fecha_fin_date1.className = 'filterlabel';
+            reset_fecha_fin_date1.onclick = function() {
+                tail.DateTime("#dat_fecha_fin_date1", {
+                    dateStart: 1747890000000,
+                    dateEnd: 1757394000000,
+                    dateFormat: 'YYYY-mm-dd',
+                    timeFormat: false,
+                    today: false,
+                    weekStart: 1,
+                    position: "left",
+                    closeButton: true,
+                    timeStepMinutes:1,
+                    timeStepSeconds: 1
+                }).selectDate(2025,5-1,22,0,0,0);
+                tail.DateTime("#dat_fecha_fin_date1").reload()
+            }
+            document.getElementById("div_fecha_fin_date1").appendChild(
+                reset_fecha_fin_date1);
+            document.addEventListener("DOMContentLoaded", function(){
+                tail.DateTime("#dat_fecha_fin_date1", {
+                    dateStart: 1747890000000,
+                    dateEnd: 1757394000000,
+                    dateFormat: 'YYYY-mm-dd',
+                    timeFormat: false,
+                    today: false,
+                    weekStart: 1,
+                    position: "left",
+                    closeButton: true,
+                    timeStepMinutes:1,
+                    timeStepSeconds: 1
+                }).selectDate(2025,5-1,22,0,0,0);
+                tail.DateTime("#dat_fecha_fin_date1").reload()
+                tail.DateTime("#dat_fecha_fin_date2", {
+                    dateStart: 1747890000000,
+                    dateEnd: 1757394000000,
+                    dateFormat: 'YYYY-mm-dd',
+                    timeFormat: false,
+                    today: false,
+                    weekStart: 1,
+                    position: "left",
+                    closeButton: true,
+                    timeStepMinutes:1,
+                    timeStepSeconds: 1
+                }).selectDate(2025,9-1,9,0,0,0);
+                tail.DateTime("#dat_fecha_fin_date2").reload()
+                filterFunc()
+                dat_fecha_fin_date1.onchange = function(){filterFunc()};
+                dat_fecha_fin_date2.onchange = function(){filterFunc()};
+            });
+            var div_fecha_fin_date2 = document.createElement("div");
+            div_fecha_fin_date2.id = "div_fecha_fin_date2";
+            div_fecha_fin_date2.className= "filterselect";
+            document.getElementById("menu").appendChild(div_fecha_fin_date2);
+            dat_fecha_fin_date2 = document.createElement('input');
+            dat_fecha_fin_date2.type = "text";
+            dat_fecha_fin_date2.id = "dat_fecha_fin_date2";
+            div_fecha_fin_date2.appendChild(dat_fecha_fin_date2);
+            var lab_fecha_fin_date2 = document.createElement('div');
+            lab_fecha_fin_date2.innerHTML  = 'fecha_fin till';
+            lab_fecha_fin_date2.className = 'filterlabel';
+            document.getElementById("div_fecha_fin_date2")
+              .appendChild(lab_fecha_fin_date2);
+            var reset_fecha_fin_date2 = document.createElement('div');
+            reset_fecha_fin_date2.innerHTML = "clear";
+            reset_fecha_fin_date2.className = 'filterlabel';
+            reset_fecha_fin_date2.onclick = function() {
+                tail.DateTime("#dat_fecha_fin_date2", {
+                    dateStart: 1747890000000,
+                    dateEnd: 1757394000000,
+                    dateFormat: 'YYYY-mm-dd',
+                    timeFormat: false,
+                    today: false,
+                    weekStart: 1,
+                    position: "left",
+                    closeButton: true,
+                    timeStepMinutes:1,
+                    timeStepSeconds: 1
+                }).selectDate(2025,9-1,9,0,0,0);
+                tail.DateTime("#dat_fecha_fin_date2").reload()
+            }
+            document.getElementById("div_fecha_fin_date2").appendChild(
+                reset_fecha_fin_date2);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_fecha_inicio_date1 = document.createElement("div");
+            div_fecha_inicio_date1.id = "div_fecha_inicio_date1";
+            div_fecha_inicio_date1.className= "filterselect";
+            document.getElementById("menu").appendChild(div_fecha_inicio_date1);
+            dat_fecha_inicio_date1 = document.createElement('input');
+            dat_fecha_inicio_date1.type = "text";
+            dat_fecha_inicio_date1.id = "dat_fecha_inicio_date1";
+            div_fecha_inicio_date1.appendChild(dat_fecha_inicio_date1);
+            var lab_fecha_inicio_date1 = document.createElement('div');
+            lab_fecha_inicio_date1.innerHTML  = 'fecha_inicio from';
+            lab_fecha_inicio_date1.className = 'filterlabel';
+            document.getElementById("div_fecha_inicio_date1").appendChild(
+                lab_fecha_inicio_date1);
+            var reset_fecha_inicio_date1 = document.createElement('div');
+            reset_fecha_inicio_date1.innerHTML = "clear";
+            reset_fecha_inicio_date1.className = 'filterlabel';
+            reset_fecha_inicio_date1.onclick = function() {
+                tail.DateTime("#dat_fecha_inicio_date1", {
+                    dateStart: 1744002000000,
+                    dateEnd: 1755925200000,
+                    dateFormat: 'YYYY-mm-dd',
+                    timeFormat: false,
+                    today: false,
+                    weekStart: 1,
+                    position: "left",
+                    closeButton: true,
+                    timeStepMinutes:1,
+                    timeStepSeconds: 1
+                }).selectDate(2025,4-1,7,0,0,0);
+                tail.DateTime("#dat_fecha_inicio_date1").reload()
+            }
+            document.getElementById("div_fecha_inicio_date1").appendChild(
+                reset_fecha_inicio_date1);
+            document.addEventListener("DOMContentLoaded", function(){
+                tail.DateTime("#dat_fecha_inicio_date1", {
+                    dateStart: 1744002000000,
+                    dateEnd: 1755925200000,
+                    dateFormat: 'YYYY-mm-dd',
+                    timeFormat: false,
+                    today: false,
+                    weekStart: 1,
+                    position: "left",
+                    closeButton: true,
+                    timeStepMinutes:1,
+                    timeStepSeconds: 1
+                }).selectDate(2025,4-1,7,0,0,0);
+                tail.DateTime("#dat_fecha_inicio_date1").reload()
+                tail.DateTime("#dat_fecha_inicio_date2", {
+                    dateStart: 1744002000000,
+                    dateEnd: 1755925200000,
+                    dateFormat: 'YYYY-mm-dd',
+                    timeFormat: false,
+                    today: false,
+                    weekStart: 1,
+                    position: "left",
+                    closeButton: true,
+                    timeStepMinutes:1,
+                    timeStepSeconds: 1
+                }).selectDate(2025,8-1,23,0,0,0);
+                tail.DateTime("#dat_fecha_inicio_date2").reload()
+                filterFunc()
+                dat_fecha_inicio_date1.onchange = function(){filterFunc()};
+                dat_fecha_inicio_date2.onchange = function(){filterFunc()};
+            });
+            var div_fecha_inicio_date2 = document.createElement("div");
+            div_fecha_inicio_date2.id = "div_fecha_inicio_date2";
+            div_fecha_inicio_date2.className= "filterselect";
+            document.getElementById("menu").appendChild(div_fecha_inicio_date2);
+            dat_fecha_inicio_date2 = document.createElement('input');
+            dat_fecha_inicio_date2.type = "text";
+            dat_fecha_inicio_date2.id = "dat_fecha_inicio_date2";
+            div_fecha_inicio_date2.appendChild(dat_fecha_inicio_date2);
+            var lab_fecha_inicio_date2 = document.createElement('div');
+            lab_fecha_inicio_date2.innerHTML  = 'fecha_inicio till';
+            lab_fecha_inicio_date2.className = 'filterlabel';
+            document.getElementById("div_fecha_inicio_date2")
+              .appendChild(lab_fecha_inicio_date2);
+            var reset_fecha_inicio_date2 = document.createElement('div');
+            reset_fecha_inicio_date2.innerHTML = "clear";
+            reset_fecha_inicio_date2.className = 'filterlabel';
+            reset_fecha_inicio_date2.onclick = function() {
+                tail.DateTime("#dat_fecha_inicio_date2", {
+                    dateStart: 1744002000000,
+                    dateEnd: 1755925200000,
+                    dateFormat: 'YYYY-mm-dd',
+                    timeFormat: false,
+                    today: false,
+                    weekStart: 1,
+                    position: "left",
+                    closeButton: true,
+                    timeStepMinutes:1,
+                    timeStepSeconds: 1
+                }).selectDate(2025,8-1,23,0,0,0);
+                tail.DateTime("#dat_fecha_inicio_date2").reload()
+            }
+            document.getElementById("div_fecha_inicio_date2").appendChild(
+                reset_fecha_inicio_date2);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_TIPO = document.createElement('div');
+            div_TIPO.id = "div_TIPO";
+            div_TIPO.className= "filterselect";
+            document.getElementById("menu").appendChild(div_TIPO);
+            sel_TIPO = document.createElement('select');
+            sel_TIPO.multiple = true;
+            sel_TIPO.size = 2;
+            sel_TIPO.id = "sel_TIPO";
+            var TIPO_options_str = "<option value='' unselected></option>";
+            sel_TIPO.onchange = function(){filterFunc()};
+            TIPO_options_str  += '<option value="CERCANÍA ESPACIAL">CERCANÍA ESPACIAL</option>';
+            TIPO_options_str  += '<option value="CRÍTICO (FECHAS)">CRÍTICO (FECHAS)</option>';
+            sel_TIPO.innerHTML = TIPO_options_str;
+            div_TIPO.appendChild(sel_TIPO);
+            var lab_TIPO = document.createElement('div');
+            lab_TIPO.innerHTML = 'TIPO';
+            lab_TIPO.className = 'filterlabel';
+            div_TIPO.appendChild(lab_TIPO);
+            var reset_TIPO = document.createElement('div');
+            reset_TIPO.innerHTML = 'clear filter';
+            reset_TIPO.className = 'filterlabel';
+            reset_TIPO.onclick = function() {
+                var options = document.getElementById("sel_TIPO").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_TIPO.appendChild(reset_TIPO);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_tipo_cierre = document.createElement('div');
+            div_tipo_cierre.id = "div_tipo_cierre";
+            div_tipo_cierre.className= "filterselect";
+            document.getElementById("menu").appendChild(div_tipo_cierre);
+            sel_tipo_cierre = document.createElement('select');
+            sel_tipo_cierre.multiple = true;
+            sel_tipo_cierre.size = 2;
+            sel_tipo_cierre.id = "sel_tipo_cierre";
+            var tipo_cierre_options_str = "<option value='' unselected></option>";
+            sel_tipo_cierre.onchange = function(){filterFunc()};
+            tipo_cierre_options_str  += '<option value="parcial">parcial</option>';
+            tipo_cierre_options_str  += '<option value="total">total</option>';
+            sel_tipo_cierre.innerHTML = tipo_cierre_options_str;
+            div_tipo_cierre.appendChild(sel_tipo_cierre);
+            var lab_tipo_cierre = document.createElement('div');
+            lab_tipo_cierre.innerHTML = 'tipo_cierre';
+            lab_tipo_cierre.className = 'filterlabel';
+            div_tipo_cierre.appendChild(lab_tipo_cierre);
+            var reset_tipo_cierre = document.createElement('div');
+            reset_tipo_cierre.innerHTML = 'clear filter';
+            reset_tipo_cierre.className = 'filterlabel';
+            reset_tipo_cierre.onclick = function() {
+                var options = document.getElementById("sel_tipo_cierre").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_tipo_cierre.appendChild(reset_tipo_cierre);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_FRENTES = document.createElement('div');
+            div_FRENTES.id = "div_FRENTES";
+            div_FRENTES.className= "filterselect";
+            document.getElementById("menu").appendChild(div_FRENTES);
+            sel_FRENTES = document.createElement('select');
+            sel_FRENTES.multiple = true;
+            sel_FRENTES.size = 10;
+            sel_FRENTES.id = "sel_FRENTES";
+            var FRENTES_options_str = "<option value='' unselected></option>";
+            sel_FRENTES.onchange = function(){filterFunc()};
+            FRENTES_options_str  += '<option value="T01-SOC-AO18 / T01-SOC-AO18">T01-SOC-AO18 / T01-SOC-AO18</option>';
+            FRENTES_options_str  += '<option value="T01-SOC-AO18 / T07-SOC-AO27">T01-SOC-AO18 / T07-SOC-AO27</option>';
+            FRENTES_options_str  += '<option value="T01-SOC-CI02 / T01-SOC-AO18">T01-SOC-CI02 / T01-SOC-AO18</option>';
+            FRENTES_options_str  += '<option value="T01-SOC-CI02 / T01-SOC-CI02">T01-SOC-CI02 / T01-SOC-CI02</option>';
+            FRENTES_options_str  += '<option value="T01-SOC-CI02 / T01-SOC-CI03">T01-SOC-CI02 / T01-SOC-CI03</option>';
+            FRENTES_options_str  += '<option value="T01-SOC-CI02 / T07-SOC-AO27">T01-SOC-CI02 / T07-SOC-AO27</option>';
+            FRENTES_options_str  += '<option value="T01-SOC-CI03 / T01-SOC-AO18">T01-SOC-CI03 / T01-SOC-AO18</option>';
+            FRENTES_options_str  += '<option value="T01-SOC-CI03 / T01-SOC-CI02">T01-SOC-CI03 / T01-SOC-CI02</option>';
+            FRENTES_options_str  += '<option value="T01-SOC-CI03 / T07-SOC-AO27">T01-SOC-CI03 / T07-SOC-AO27</option>';
+            FRENTES_options_str  += '<option value="T03-SOC-AC13 / T03-SOC-AC15">T03-SOC-AC13 / T03-SOC-AC15</option>';
+            FRENTES_options_str  += '<option value="T03-SOC-AC13 / T03-SOC-AC16">T03-SOC-AC13 / T03-SOC-AC16</option>';
+            FRENTES_options_str  += '<option value="T03-SOC-AC14 / T03-SOC-AC13">T03-SOC-AC14 / T03-SOC-AC13</option>';
+            FRENTES_options_str  += '<option value="T03-SOC-AC14 / T03-SOC-AC15">T03-SOC-AC14 / T03-SOC-AC15</option>';
+            FRENTES_options_str  += '<option value="T03-SOC-AC14 / T03-SOC-AC16">T03-SOC-AC14 / T03-SOC-AC16</option>';
+            FRENTES_options_str  += '<option value="T03-SOC-AC15 / T03-SOC-AC16">T03-SOC-AC15 / T03-SOC-AC16</option>';
+            FRENTES_options_str  += '<option value="T06-CAO-001 / T06-CAO-002">T06-CAO-001 / T06-CAO-002</option>';
+            FRENTES_options_str  += '<option value="T07-SOC-AO27 / T08-SOC-AO28">T07-SOC-AO27 / T08-SOC-AO28</option>';
+            sel_FRENTES.innerHTML = FRENTES_options_str;
+            div_FRENTES.appendChild(sel_FRENTES);
+            var lab_FRENTES = document.createElement('div');
+            lab_FRENTES.innerHTML = 'FRENTES';
+            lab_FRENTES.className = 'filterlabel';
+            div_FRENTES.appendChild(lab_FRENTES);
+            var reset_FRENTES = document.createElement('div');
+            reset_FRENTES.innerHTML = 'clear filter';
+            reset_FRENTES.className = 'filterlabel';
+            reset_FRENTES.onclick = function() {
+                var options = document.getElementById("sel_FRENTES").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_FRENTES.appendChild(reset_FRENTES);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_proyecto = document.createElement('div');
+            div_proyecto.id = "div_proyecto";
+            div_proyecto.className= "filterselect";
+            document.getElementById("menu").appendChild(div_proyecto);
+            sel_proyecto = document.createElement('select');
+            sel_proyecto.multiple = true;
+            sel_proyecto.size = 6;
+            sel_proyecto.id = "sel_proyecto";
+            var proyecto_options_str = "<option value='' unselected></option>";
+            sel_proyecto.onchange = function(){filterFunc()};
+            proyecto_options_str  += '<option value="EDIE1">EDIE1</option>';
+            proyecto_options_str  += '<option value="EDIE2">EDIE2</option>';
+            proyecto_options_str  += '<option value="EDIE3">EDIE3</option>';
+            proyecto_options_str  += '<option value="EDIE4">EDIE4</option>';
+            proyecto_options_str  += '<option value="EDIE5">EDIE5</option>';
+            proyecto_options_str  += '<option value="EDIE6">EDIE6</option>';
+            sel_proyecto.innerHTML = proyecto_options_str;
+            div_proyecto.appendChild(sel_proyecto);
+            var lab_proyecto = document.createElement('div');
+            lab_proyecto.innerHTML = 'proyecto';
+            lab_proyecto.className = 'filterlabel';
+            div_proyecto.appendChild(lab_proyecto);
+            var reset_proyecto = document.createElement('div');
+            reset_proyecto.innerHTML = 'clear filter';
+            reset_proyecto.className = 'filterlabel';
+            reset_proyecto.onclick = function() {
+                var options = document.getElementById("sel_proyecto").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_proyecto.appendChild(reset_proyecto);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_contratista = document.createElement('div');
+            div_contratista.id = "div_contratista";
+            div_contratista.className= "filterselect";
+            document.getElementById("menu").appendChild(div_contratista);
+            sel_contratista = document.createElement('select');
+            sel_contratista.multiple = true;
+            sel_contratista.size = 6;
+            sel_contratista.id = "sel_contratista";
+            var contratista_options_str = "<option value='' unselected></option>";
+            sel_contratista.onchange = function(){filterFunc()};
+            contratista_options_str  += '<option value="EAG_INGENIERIA">EAG_INGENIERIA</option>';
+            contratista_options_str  += '<option value="LESER INGENIERIA">LESER INGENIERIA</option>';
+            contratista_options_str  += '<option value="PROTOTIPO S.A.S">PROTOTIPO S.A.S</option>';
+            contratista_options_str  += '<option value="REDYCO">REDYCO</option>';
+            contratista_options_str  += '<option value="SANEAR">SANEAR</option>';
+            contratista_options_str  += '<option value="TROS_INGENIERIA">TROS_INGENIERIA</option>';
+            sel_contratista.innerHTML = contratista_options_str;
+            div_contratista.appendChild(sel_contratista);
+            var lab_contratista = document.createElement('div');
+            lab_contratista.innerHTML = 'contratista';
+            lab_contratista.className = 'filterlabel';
+            div_contratista.appendChild(lab_contratista);
+            var reset_contratista = document.createElement('div');
+            reset_contratista.innerHTML = 'clear filter';
+            reset_contratista.className = 'filterlabel';
+            reset_contratista.onclick = function() {
+                var options = document.getElementById("sel_contratista").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_contratista.appendChild(reset_contratista);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_contrato = document.createElement('div');
+            div_contrato.id = "div_contrato";
+            div_contrato.className= "filterselect";
+            document.getElementById("menu").appendChild(div_contrato);
+            sel_contrato = document.createElement('select');
+            sel_contrato.multiple = true;
+            sel_contrato.size = 6;
+            sel_contrato.id = "sel_contrato";
+            var contrato_options_str = "<option value='' unselected></option>";
+            sel_contrato.onchange = function(){filterFunc()};
+            contrato_options_str  += '<option value="CW328120">CW328120</option>';
+            contrato_options_str  += '<option value="CW328121">CW328121</option>';
+            contrato_options_str  += '<option value="CW328122">CW328122</option>';
+            contrato_options_str  += '<option value="CW328123">CW328123</option>';
+            contrato_options_str  += '<option value="CW328124">CW328124</option>';
+            contrato_options_str  += '<option value="CW328125">CW328125</option>';
+            sel_contrato.innerHTML = contrato_options_str;
+            div_contrato.appendChild(sel_contrato);
+            var lab_contrato = document.createElement('div');
+            lab_contrato.innerHTML = 'contrato';
+            lab_contrato.className = 'filterlabel';
+            div_contrato.appendChild(lab_contrato);
+            var reset_contrato = document.createElement('div');
+            reset_contrato.innerHTML = 'clear filter';
+            reset_contrato.className = 'filterlabel';
+            reset_contrato.onclick = function() {
+                var options = document.getElementById("sel_contrato").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_contrato.appendChild(reset_contrato);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_CONTRATOS = document.createElement('div');
+            div_CONTRATOS.id = "div_CONTRATOS";
+            div_CONTRATOS.className= "filterselect";
+            document.getElementById("menu").appendChild(div_CONTRATOS);
+            sel_CONTRATOS = document.createElement('select');
+            sel_CONTRATOS.multiple = true;
+            sel_CONTRATOS.size = 6;
+            sel_CONTRATOS.id = "sel_CONTRATOS";
+            var CONTRATOS_options_str = "<option value='' unselected></option>";
+            sel_CONTRATOS.onchange = function(){filterFunc()};
+            CONTRATOS_options_str  += '<option value="CW328120 vs CW328121">CW328120 vs CW328121</option>';
+            CONTRATOS_options_str  += '<option value="CW328121 vs CW328121">CW328121 vs CW328121</option>';
+            CONTRATOS_options_str  += '<option value="CW328122 vs CW328122">CW328122 vs CW328122</option>';
+            CONTRATOS_options_str  += '<option value="CW328123 vs CW328123">CW328123 vs CW328123</option>';
+            CONTRATOS_options_str  += '<option value="CW328123 vs CW328124">CW328123 vs CW328124</option>';
+            CONTRATOS_options_str  += '<option value="CW328124 vs CW328125">CW328124 vs CW328125</option>';
+            sel_CONTRATOS.innerHTML = CONTRATOS_options_str;
+            div_CONTRATOS.appendChild(sel_CONTRATOS);
+            var lab_CONTRATOS = document.createElement('div');
+            lab_CONTRATOS.innerHTML = 'CONTRATOS';
+            lab_CONTRATOS.className = 'filterlabel';
+            div_CONTRATOS.appendChild(lab_CONTRATOS);
+            var reset_CONTRATOS = document.createElement('div');
+            reset_CONTRATOS.innerHTML = 'clear filter';
+            reset_CONTRATOS.className = 'filterlabel';
+            reset_CONTRATOS.onclick = function() {
+                var options = document.getElementById("sel_CONTRATOS").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_CONTRATOS.appendChild(reset_CONTRATOS);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_frente = document.createElement('div');
+            div_frente.id = "div_frente";
+            div_frente.className= "filterselect";
+            document.getElementById("menu").appendChild(div_frente);
+            sel_frente = document.createElement('select');
+            sel_frente.multiple = true;
+            sel_frente.size = 10;
+            sel_frente.id = "sel_frente";
+            var frente_options_str = "<option value='' unselected></option>";
+            sel_frente.onchange = function(){filterFunc()};
+            frente_options_str  += '<option value="T01-SOC-AO18">T01-SOC-AO18</option>';
+            frente_options_str  += '<option value="T01-SOC-CI02">T01-SOC-CI02</option>';
+            frente_options_str  += '<option value="T01-SOC-CI03">T01-SOC-CI03</option>';
+            frente_options_str  += '<option value="T03-SOC-AC13">T03-SOC-AC13</option>';
+            frente_options_str  += '<option value="T03-SOC-AC14">T03-SOC-AC14</option>';
+            frente_options_str  += '<option value="T03-SOC-AC15">T03-SOC-AC15</option>';
+            frente_options_str  += '<option value="T03-SOC-AC16">T03-SOC-AC16</option>';
+            frente_options_str  += '<option value="T06-CAO-001">T06-CAO-001</option>';
+            frente_options_str  += '<option value="T06-CAO-002">T06-CAO-002</option>';
+            frente_options_str  += '<option value="T07-SOC-AO27">T07-SOC-AO27</option>';
+            frente_options_str  += '<option value="T08-SOC-AO28">T08-SOC-AO28</option>';
+            sel_frente.innerHTML = frente_options_str;
+            div_frente.appendChild(sel_frente);
+            var lab_frente = document.createElement('div');
+            lab_frente.innerHTML = 'frente';
+            lab_frente.className = 'filterlabel';
+            div_frente.appendChild(lab_frente);
+            var reset_frente = document.createElement('div');
+            reset_frente.innerHTML = 'clear filter';
+            reset_frente.className = 'filterlabel';
+            reset_frente.onclick = function() {
+                var options = document.getElementById("sel_frente").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_frente.appendChild(reset_frente);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_kmz_origen = document.createElement('div');
+            div_kmz_origen.id = "div_kmz_origen";
+            div_kmz_origen.className= "filterselect";
+            document.getElementById("menu").appendChild(div_kmz_origen);
+            sel_kmz_origen = document.createElement('select');
+            sel_kmz_origen.multiple = true;
+            sel_kmz_origen.size = 6;
+            sel_kmz_origen.id = "sel_kmz_origen";
+            var kmz_origen_options_str = "<option value='' unselected></option>";
+            sel_kmz_origen.onchange = function(){filterFunc()};
+            kmz_origen_options_str  += '<option value="CW328120.kmz">CW328120.kmz</option>';
+            kmz_origen_options_str  += '<option value="CW328121.kmz">CW328121.kmz</option>';
+            kmz_origen_options_str  += '<option value="CW328122.kmz">CW328122.kmz</option>';
+            kmz_origen_options_str  += '<option value="CW328123.kmz">CW328123.kmz</option>';
+            kmz_origen_options_str  += '<option value="CW328124.kmz">CW328124.kmz</option>';
+            kmz_origen_options_str  += '<option value="CW328125.kmz">CW328125.kmz</option>';
+            sel_kmz_origen.innerHTML = kmz_origen_options_str;
+            div_kmz_origen.appendChild(sel_kmz_origen);
+            var lab_kmz_origen = document.createElement('div');
+            lab_kmz_origen.innerHTML = 'kmz_origen';
+            lab_kmz_origen.className = 'filterlabel';
+            div_kmz_origen.appendChild(lab_kmz_origen);
+            var reset_kmz_origen = document.createElement('div');
+            reset_kmz_origen.innerHTML = 'clear filter';
+            reset_kmz_origen.className = 'filterlabel';
+            reset_kmz_origen.onclick = function() {
+                var options = document.getElementById("sel_kmz_origen").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_kmz_origen.appendChild(reset_kmz_origen);
         </script>        
     </body>
 </html>
