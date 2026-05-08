@@ -2,56 +2,72 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Gestión PMT - Dashboard EPM</title>
-    <!-- Librerías de diseño visual y tablas -->
+    <title>Gestión PMT Institucional</title>
+    <!-- Estilos -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <!-- Extensiones para Botones de Excel/CSV -->
+    <link href="https://cdn.datatables.net/buttons/2.3.6/css/buttons.bootstrap5.min.css" rel="stylesheet">
+    
     <style>
         body { background-color: #f8f9fa; font-family: Arial, sans-serif; }
-        
-        /* Paleta EPM Institucional */
         .epm-header { background-color: white; border-bottom: 5px solid #009300; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 10px 20px;}
         .epm-title { color: #009300; font-weight: bold; font-size: 24px; margin-left: 20px; vertical-align: middle;}
         .epm-card-header { background-color: #009300; color: white; font-weight: bold; }
         .epm-btn { background-color: #b7c200; color: #000; font-weight: bold; border: none; }
         .epm-btn:hover { background-color: #99a800; }
-        
-        /* Contenedores */
+        .epm-btn-play { background-color: #009300; color: white; font-weight: bold; }
         .map-wrapper { height: 50vh; border: 3px solid #009300; border-radius: 8px; margin-bottom: 20px; overflow: hidden; position: relative;}
         .table-wrapper { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 4px solid #b7c200;}
-        
-        /* Estilos de tabla EPM */
         .table-dark { background-color: #008c6b !important; }
         .page-item.active .page-link { background-color: #009300 !important; border-color: #009300 !important; }
+        /* Panel temporal */
+        .temporal-box { background-color: #e9f5e9; border: 2px solid #009300; border-radius: 8px; padding: 15px; margin-bottom: 20px;}
     </style>
 </head>
 <body>
-
-<!-- Cabecera Logo EPM -->
-<div class="epm-header mb-4">
-    <img src="https://www.epm.com.co/site/Portals/0/Images/logo-epm.png" alt="Logo EPM" style="height: 60px;">
-    <span class="epm-title">Visor de Gestión PMT e Interferencias</span>
+<div class="epm-header mb-4 d-flex justify-content-between align-items-center">
+    <div>
+        <!-- Logo de fuente estable -->
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ee/Logo_EPM.png/320px-Logo_EPM.png" alt="Logo EPM" style="height: 50px;">
+        <span class="epm-title">Visor Inteligente de Gestión PMT</span>
+    </div>
 </div>
 
 <div class="container-fluid px-4">
-    <!-- Panel de Filtros -->
-    <div class="card mb-4" style="border-color: #009300;">
-        <div class="card-header epm-card-header">
-            ⚙️ Filtros Inteligentes (Aplica filtros para actualizar la tabla y el mapa)
+    <!-- PANEL REPRODUCTOR TEMPORAL (NUEVO) -->
+    <div class="temporal-box d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-3">
+            <h5 class="m-0 text-success fw-bold">⏱️ Reproductor Temporal:</h5>
+            <button id="btnPlay" class="btn epm-btn-play px-4">▶ Iniciar Recorrido</button>
+            <input type="date" id="fechaReproductor" class="form-control" style="width: 150px;">
         </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="fw-bold">Avanzar cada:</span>
+            <select id="velocidadPaso" class="form-select" style="width: 130px;">
+                <option value="1">1 Día</option>
+                <option value="7">1 Semana</option>
+                <option value="30">1 Mes</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- PANEL DE FILTROS -->
+    <div class="card mb-4" style="border-color: #009300;">
+        <div class="card-header epm-card-header">⚙️ Filtros Manuales Estratégicos</div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label fw-bold" style="color: #009300;">Contratista:</label>
-                    <select id="filtroContratista" class="form-select">
-                        <option value="">Todos los contratistas</option>
-                    </select>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-success">Contrato:</label>
+                    <select id="filtroContrato" class="form-select"><option value="">Todos</option></select>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-bold" style="color: #009300;">Tipo de Registro:</label>
-                    <select id="filtroTipo" class="form-select">
-                        <option value="">Todos</option>
-                    </select>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-success">Contratista:</label>
+                    <select id="filtroContratista" class="form-select"><option value="">Todos</option></select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-success">Municipio:</label>
+                    <select id="filtroMunicipio" class="form-select"><option value="">Todos</option></select>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label fw-bold text-secondary">Activo Desde:</label>
@@ -62,33 +78,22 @@
                     <input type="date" id="filtroFin" class="form-control">
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
-                    <button id="btnLimpiar" class="btn epm-btn w-100">🧹 Limpiar</button>
+                    <button id="btnLimpiar" class="btn epm-btn w-100">🧹 Limpiar Todo</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Mapa -->
-    <div class="map-wrapper">
-        <iframe id="mapaIframe" src="mapa_qgis.html" width="100%" height="100%" style="border:none;"></iframe>
-    </div>
-
-    <!-- Tabla Inteligente -->
+    <!-- MAPA -->
+    <div class="map-wrapper"><iframe id="mapaIframe" src="mapa_qgis.html" width="100%" height="100%" style="border:none;"></iframe></div>
+    
+    <!-- TABLA -->
     <div class="table-wrapper">
         <div class="table-responsive">
+            <!-- El id tablaDatos es vital para JS -->
             <table id="tablaDatos" class="table table-striped table-hover align-middle" style="width:100%">
                 <thead class="table-dark text-white">
-                    <tr>
-                        <th>Categoría</th>
-                        <th>Contrato</th>
-                        <th>Contratista</th>
-                        <th>Frente</th>
-                        <th>Dirección</th>
-                        <th>Estado/Cierre</th>
-                        <th>Inicio</th>
-                        <th>Fin</th>
-                        <th>Días</th>
-                    </tr>
+                    <tr><th>Categoría</th><th>Contrato</th><th>Contratista</th><th>Municipio</th><th>Frente</th><th>Dirección</th><th>Estado/Cierre</th><th>Inicio</th><th>Fin</th><th>Días</th></tr>
                 </thead>
                 <tbody id="cuerpoTabla"></tbody>
             </table>
@@ -96,132 +101,141 @@
     </div>
 </div>
 
-<!-- Scripts -->
+<!-- LIBRERÍAS JS -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+<!-- Botones de Exportación -->
+<script src="https://cdn.datatables.net/buttons/2.3.6/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.html5.min.js"></script>
 
 <script>
     var mapaCargado = false;
+    var reproductorInterval = null;
+    var reproduciendo = false;
+
     $('#mapaIframe').on('load', function() { mapaCargado = true; syncMap(); });
 
-    // LÓGICA DE FILTRADO DE FECHAS (Solapamiento)
+    // Lógica principal de búsqueda (Fechas y Desplegables)
     $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
-        var contratista = $('#filtroContratista').val();
-        var tipo = $('#filtroTipo').val();
-        var fInicio = $('#filtroInicio').val();
-        var fFin = $('#filtroFin').val();
+        var pContrato = $('#filtroContrato').val(), pContratista = $('#filtroContratista').val(), pMun = $('#filtroMunicipio').val();
+        var fInicio = $('#filtroInicio').val(), fFin = $('#filtroFin').val();
+        
+        // Índices: 0:Cat, 1:Contrato, 2:Contratista, 3:Mun, 4:Frente, 5:Dir, 6:Estado, 7:Inicio, 8:Fin, 9:Dias
+        if (pContrato && data[1] !== pContrato) return false;
+        if (pContratista && data[2] !== pContratista) return false;
+        if (pMun && data[3] !== pMun) return false;
 
-        var rowContratista = data[2];
-        var rowTipo = data[0]; 
-        var rowInicioStr = data[6];
-        var rowFinStr = data[7];
-
-        if (contratista && rowContratista !== contratista) return false;
-        if (tipo && rowTipo !== tipo) return false;
-
-        // Si el usuario eligió un periodo, revisamos si el proyecto se cruza con esos días
+        // Lógica de fechas
         if (fInicio && fFin) {
-            var filtroStart = new Date(fInicio + 'T00:00:00');
-            var filtroEnd = new Date(fFin + 'T23:59:59');
-            
-            if (rowInicioStr !== 'N/A' && rowFinStr !== 'N/A' && rowInicioStr && rowFinStr) {
-                var proyStart = new Date(rowInicioStr + 'T00:00:00');
-                var proyEnd = new Date(rowFinStr + 'T23:59:59');
-                // Lógica clave: El proyecto está activo si empieza antes de que termine el filtro Y termina después de que empiece el filtro
-                if (!(proyStart <= filtroEnd && proyEnd >= filtroStart)) {
-                    return false;
-                }
-            } else {
-                return false;
-            }
+            var filtroStart = new Date(fInicio + 'T00:00:00'), filtroEnd = new Date(fFin + 'T23:59:59');
+            if (data[7] !== 'N/A' && data[8] !== 'N/A' && data[7] && data[8]) {
+                var proyStart = new Date(data[7] + 'T00:00:00'), proyEnd = new Date(data[8] + 'T23:59:59');
+                if (!(proyStart <= filtroEnd && proyEnd >= filtroStart)) return false;
+            } else { return false; }
         }
         return true;
     });
 
     $(document).ready(function() {
-        // Cargar el CSV
-        fetch('reporte_dinamico.csv')
-            .then(response => response.text())
-            .then(data => {
-                const filas = data.split('\n').slice(1);
-                let html = '';
-                filas.forEach(fila => {
-                    const columnas = fila.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-                    if (columnas && columnas.length >= 9) {
-                        html += `<tr>`;
-                        columnas.forEach(col => { html += `<td>${col.replace(/^"|"$/g, '')}</td>`; });
-                        html += `</tr>`;
-                    }
-                });
-                $('#cuerpoTabla').html(html);
-                
-                // Activar DataTables (paginado a 5 para no hacer la lista eterna)
-                var table = $('#tablaDatos').DataTable({
-                    language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
-                    pageLength: 5,
-                    lengthMenu: [5, 10, 25, 50, "Todos"],
-                    order: [[0, 'desc']]
-                });
-
-                // Llenar listas desplegables
-                table.column(2).data().unique().sort().each(function(d) {
-                    if(d) $('#filtroContratista').append('<option value="'+d+'">'+d+'</option>');
-                });
-                table.column(0).data().unique().sort().each(function(d) {
-                    if(d) $('#filtroTipo').append('<option value="'+d+'">'+d+'</option>');
-                });
-
-                // Detectar cambios en filtros
-                $('#filtroContratista, #filtroTipo, #filtroInicio, #filtroFin').on('change', function() { table.draw(); });
-                $('#btnLimpiar').click(function() {
-                    $('#filtroContratista, #filtroTipo, #filtroInicio, #filtroFin').val('');
-                    table.draw();
-                });
-
-                // Sincronizar mapa cada vez que la tabla cambia
-                table.on('draw.dt', function() { syncMap(); });
+        fetch('reporte_dinamico.csv').then(response => response.text()).then(data => {
+            const filas = data.split('\n').slice(1);
+            let html = '';
+            filas.forEach(fila => {
+                const columnas = fila.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+                if (columnas && columnas.length >= 10) {
+                    html += `<tr>`; columnas.forEach(col => { html += `<td>${col.replace(/^"|"$/g, '')}</td>`; }); html += `</tr>`;
+                }
             });
+            $('#cuerpoTabla').html(html);
+            
+            // Inicializar Tabla con Botones de Exportación
+            var table = $('#tablaDatos').DataTable({
+                language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
+                pageLength: 5, lengthMenu: [5, 10, 25, 50, "Todos"], order: [[0, 'desc']],
+                dom: "<'row'<'col-sm-12 col-md-4'l><'col-sm-12 col-md-4 text-center'B><'col-sm-12 col-md-4'f>>" + "<'row'<'col-sm-12'tr>>" + "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+                buttons: [
+                    { extend: 'excelHtml5', text: '📥 Exportar a Excel', className: 'btn btn-success fw-bold' },
+                    { extend: 'csvHtml5', text: '📄 Exportar a CSV', className: 'btn btn-secondary fw-bold' }
+                ]
+            });
+
+            // Llenar listas deplegables
+            table.column(1).data().unique().sort().each(function(d) { if(d) $('#filtroContrato').append('<option value="'+d+'">'+d+'</option>'); });
+            table.column(2).data().unique().sort().each(function(d) { if(d) $('#filtroContratista').append('<option value="'+d+'">'+d+'</option>'); });
+            table.column(3).data().unique().sort().each(function(d) { if(d) $('#filtroMunicipio').append('<option value="'+d+'">'+d+'</option>'); });
+
+            // Eventos de filtros manuales
+            $('#filtroContrato, #filtroContratista, #filtroMunicipio, #filtroInicio, #filtroFin').on('change', function() { table.draw(); });
+            
+            $('#btnLimpiar').click(function() { 
+                $('#filtroContrato, #filtroContratista, #filtroMunicipio, #filtroInicio, #filtroFin, #fechaReproductor').val(''); 
+                detenerReproductor(); table.draw(); 
+            });
+            
+            table.on('draw.dt', function() { syncMap(); });
+
+            // --- LÓGICA DEL REPRODUCTOR TEMPORAL ---
+            $('#btnPlay').click(function() {
+                if (reproduciendo) { detenerReproductor(); } 
+                else { iniciarReproductor(table); }
+            });
+        });
     });
 
-    // LÓGICA DE SINCRONIZACIÓN CON EL MAPA
+    function iniciarReproductor(table) {
+        var fechaActualStr = $('#fechaReproductor').val();
+        if(!fechaActualStr) {
+            // Si está vacío, empezamos hoy
+            var hoy = new Date();
+            $('#fechaReproductor').val(hoy.toISOString().split('T')[0]);
+        }
+        reproduciendo = true;
+        $('#btnPlay').text('⏸ Pausar').removeClass('epm-btn-play').addClass('btn-danger');
+        
+        reproductorInterval = setInterval(function() {
+            var fechaObj = new Date($('#fechaReproductor').val() + 'T00:00:00');
+            var diasPaso = parseInt($('#velocidadPaso').val());
+            fechaObj.setDate(fechaObj.getDate() + diasPaso);
+            
+            var nuevaFechaStr = fechaObj.toISOString().split('T')[0];
+            $('#fechaReproductor').val(nuevaFechaStr);
+            
+            // Forzar los filtros de la tabla a este día específico
+            $('#filtroInicio').val(nuevaFechaStr);
+            $('#filtroFin').val(nuevaFechaStr);
+            table.draw();
+
+        }, 1500); // 1.5 segundos entre cada salto
+    }
+
+    function detenerReproductor() {
+        reproduciendo = false;
+        clearInterval(reproductorInterval);
+        $('#btnPlay').text('▶ Iniciar Recorrido').removeClass('btn-danger').addClass('epm-btn-play');
+    }
+
     function syncMap() {
         if (!mapaCargado) return;
         var table = $('#tablaDatos').DataTable();
         var filasVisibles = table.rows({ filter: 'applied' }).data();
-        
         var frentesActivos = [];
-        // Guardamos los nombres de los frentes/interferencias que SÍ se están mostrando en la tabla
-        filasVisibles.each(function(row) { 
-            // La columna 3 tiene el nombre del frente en trazados, y el cruce en interferencias
-            frentesActivos.push(row[3]); 
-        });
+        // Columna 4 es "Frente" ahora
+        filasVisibles.each(function(row) { frentesActivos.push(row[4]); });
 
         var iframeWin = document.getElementById('mapaIframe').contentWindow;
         if(iframeWin.map) {
             iframeWin.map.eachLayer(function(layer) {
                 if(layer.feature && layer.feature.properties) {
-                    // Adaptarse al nombre de la columna en QGIS (FRENTES o frente)
                     var nombreMapa = layer.feature.properties['frente'] || layer.feature.properties['FRENTES'];
-                    
-                    // Guardar estilo original para no perder los colores
                     if (!layer.feature.estiloOriginal) {
-                        layer.feature.estiloOriginal = {
-                            opacity: layer.options.opacity !== undefined ? layer.options.opacity : 1,
-                            fillOpacity: layer.options.fillOpacity !== undefined ? layer.options.fillOpacity : 0.6,
-                            weight: layer.options.weight !== undefined ? layer.options.weight : 3
-                        };
+                        layer.feature.estiloOriginal = { opacity: layer.options.opacity !== undefined ? layer.options.opacity : 1, fillOpacity: layer.options.fillOpacity !== undefined ? layer.options.fillOpacity : 0.6, weight: layer.options.weight !== undefined ? layer.options.weight : 3 };
                     }
-
-                    // Apagar o Encender en el mapa según la tabla
                     if (frentesActivos.includes(nombreMapa)) {
-                        if(layer.setStyle) layer.setStyle({
-                            opacity: layer.feature.estiloOriginal.opacity, 
-                            fillOpacity: layer.feature.estiloOriginal.fillOpacity,
-                            weight: layer.feature.estiloOriginal.weight
-                        });
+                        if(layer.setStyle) layer.setStyle({ opacity: layer.feature.estiloOriginal.opacity, fillOpacity: layer.feature.estiloOriginal.fillOpacity, weight: layer.feature.estiloOriginal.weight });
                     } else {
-                        // Ocultar capa
                         if(layer.setStyle) layer.setStyle({opacity: 0, fillOpacity: 0, weight: 0});
                     }
                 }
