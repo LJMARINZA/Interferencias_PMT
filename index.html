@@ -132,7 +132,21 @@
 
     $('#mapaIframe').on('load', function() { mapaCargado = true; syncMap(); });
 
-    // BUSQUEDA
+    // LECTOR DE CSV A PRUEBA DE FALLOS (Para celdas vacías)
+    function parseCSVRow(str) {
+        let arr = [], quote = false, start = 0;
+        for (let i = 0; i < str.length; i++) {
+            if (str[i] === '"') quote = !quote;
+            if (str[i] === ',' && !quote) {
+                arr.push(str.substring(start, i).replace(/^"|"$/g, '').trim());
+                start = i + 1;
+            }
+        }
+        arr.push(str.substring(start).replace(/^"|"$/g, '').trim());
+        return arr;
+    }
+
+    // BUSCADOR INTELIGENTE
     $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
         var pContratista = $('#filtroContratista').val(), pContrato = $('#filtroContrato').val();
         var pFrente = $('#filtroFrente').val(), pInterf = $('#filtroInterferencia').val();
@@ -142,9 +156,8 @@
         if (pFrente && data[4] !== pFrente) return false;
         if (pInterf && data[6] !== pInterf && data[0] !== pInterf) return false;
 
-        // Nuevos índices: Inicio(8), Fin(9)
-        var proyStart = (data[8] !== 'N/A' && data[8]) ? new Date(data[8] + 'T00:00:00') : null;
-        var proyEnd = (data[9] !== 'N/A' && data[9]) ? new Date(data[9] + 'T23:59:59') : null;
+        var proyStart = (data[8] && data[8] !== 'N/A') ? new Date(data[8] + 'T00:00:00') : null;
+        var proyEnd = (data[9] && data[9] !== 'N/A') ? new Date(data[9] + 'T23:59:59') : null;
 
         if (reproduccionActiva && fechaReproduccion) {
             if (proyStart && proyEnd) {
@@ -169,9 +182,10 @@
             const filas = data.split('\n').slice(1);
             let html = '';
             filas.forEach(fila => {
-                const columnas = fila.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+                if(fila.trim() === '') return;
+                const columnas = parseCSVRow(fila);
                 if (columnas && columnas.length >= 11) {
-                    html += `<tr>`; columnas.forEach(col => { html += `<td>${col.replace(/^"|"$/g, '')}</td>`; }); html += `</tr>`;
+                    html += `<tr>`; columnas.forEach(col => { html += `<td>${col}</td>`; }); html += `</tr>`;
                 }
             });
             $('#cuerpoTabla').html(html);
@@ -179,8 +193,7 @@
             var table = $('#tablaDatos').DataTable({
                 language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
                 pageLength: 5, lengthMenu: [5, 10, 25, 50, "Todos"], order: [[0, 'desc']],
-                // AQUÍ OCULTAMOS LA COLUMNA MUNICIPIO (Índice 3)
-                columnDefs: [ { targets: 3, visible: false } ],
+                columnDefs: [ { targets: 3, visible: false } ], // Ocultar Municipio
                 dom: "<'row'<'col-sm-12 col-md-4'l><'col-sm-12 col-md-4 text-center'B><'col-sm-12 col-md-4'f>>" + "<'row'<'col-sm-12'tr>>" + "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
                 buttons: [
                     { extend: 'excelHtml5', text: '📥 Exportar Filtro a Excel', className: 'btn btn-success fw-bold' },
@@ -206,12 +219,8 @@
                 if (reproduccionActiva) { detenerReproductor(); } else { iniciarReproductor(table); }
             });
 
-            // Si cambian la velocidad mientras reproduce, reiniciamos el ciclo
             $('#velocidadReproduccion').on('change', function() {
-                if(reproduccionActiva) {
-                    clearInterval(reproductorInterval);
-                    iniciarCiclo(table);
-                }
+                if(reproduccionActiva) { clearInterval(reproductorInterval); iniciarCiclo(table); }
             });
         });
     });
@@ -234,9 +243,7 @@
 
         reproductorInterval = setInterval(function() {
             if(fechaReproduccion > fechaFinReal) {
-                detenerReproductor();
-                $('#fechaActualVisual').text("Finalizado");
-                return;
+                detenerReproductor(); $('#fechaActualVisual').text("Finalizado"); return;
             }
             $('#fechaActualVisual').text(fechaReproduccion.toISOString().split('T')[0]);
             table.draw();
@@ -251,20 +258,30 @@
         if(!$('#fechaActualVisual').text().includes("Finalizado")) $('#fechaActualVisual').text("--- Pausado ---");
     }
 
+    // SINCRONIZACIÓN CON EL MAPA (Seguro contra capa invisible)
     function syncMap() {
         if (!mapaCargado) return;
         var table = $('#tablaDatos').DataTable();
         var frentesActivos = [];
-        table.rows({ filter: 'applied' }).data().each(function(row) { frentesActivos.push(row[4]); }); // Columna 4 es Frente
+        table.rows({ filter: 'applied' }).data().each(function(row) { frentesActivos.push(row[4]); }); 
 
         var iframeWin = document.getElementById('mapaIframe').contentWindow;
         if(iframeWin.map) {
             iframeWin.map.eachLayer(function(layer) {
                 if(layer.feature && layer.feature.properties) {
-                    var nombreMapa = layer.feature.properties['frente'] || layer.feature.properties['FRENTES'] || layer.feature.properties['Name'];
+                    var props = layer.feature.properties;
+                    var nombreMapa = props['frente'] || props['FRENTES'] || props['Name'] || props['FRENTE'];
+                    
                     if (!layer.feature.estiloOriginal) {
-                        layer.feature.estiloOriginal = { opacity: layer.options.opacity !== undefined ? layer.options.opacity : 1, fillOpacity: layer.options.fillOpacity !== undefined ? layer.options.fillOpacity : 0.6, weight: layer.options.weight !== undefined ? layer.options.weight : 3 };
+                        let dOp = layer.options.opacity, dFill = layer.options.fillOpacity, dWeight = layer.options.weight;
+                        // Seguro de vida: si guarda estando en 0, lo fuerza al color original de QGIS
+                        layer.feature.estiloOriginal = { 
+                            opacity: (dOp !== undefined && dOp !== 0) ? dOp : 1, 
+                            fillOpacity: (dFill !== undefined && dFill !== 0) ? dFill : 0.6, 
+                            weight: (dWeight !== undefined && dWeight !== 0) ? dWeight : 3 
+                        };
                     }
+
                     if (frentesActivos.includes(nombreMapa)) {
                         if(layer.setStyle) layer.setStyle({ opacity: layer.feature.estiloOriginal.opacity, fillOpacity: layer.feature.estiloOriginal.fillOpacity, weight: layer.feature.estiloOriginal.weight });
                     } else {
