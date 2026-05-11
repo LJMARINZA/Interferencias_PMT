@@ -9,40 +9,42 @@
     
     <style>
         body { background-color: #f8f9fa; font-family: Arial, sans-serif; }
-        .epm-header { background-color: white; border-bottom: 5px solid #009300; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 10px 20px;}
-        .epm-title { color: #009300; font-weight: bold; font-size: 24px; margin-left: 20px; vertical-align: middle;}
-        .epm-card-header { background-color: #009300; color: white; font-weight: bold; }
+        .epm-header { background-color: white; border-bottom: 4px solid #009300; box-shadow: 0 2px 5px rgba(0,0,0,0.1); padding: 5px 20px;}
+        .epm-title { color: #009300; font-weight: bold; font-size: 20px; margin-left: 15px; vertical-align: middle;}
+        .epm-card-header { background-color: #009300; color: white; font-weight: bold; padding: 5px 15px; font-size: 0.9rem;}
         .epm-btn { background-color: #b7c200; color: #000; font-weight: bold; border: none; }
         .epm-btn:hover { background-color: #99a800; }
         .epm-btn-play { background-color: #009300; color: white; font-weight: bold; }
-        .map-wrapper { height: 50vh; border: 3px solid #009300; border-radius: 8px; margin-bottom: 20px; overflow: hidden; position: relative;}
-        .table-wrapper { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 4px solid #b7c200;}
+        /* MAPA MÁS GRANDE */
+        .map-wrapper { height: 65vh; border: 3px solid #009300; border-radius: 8px; margin-bottom: 15px; overflow: hidden; position: relative;}
+        .table-wrapper { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #b7c200;}
         .table-dark { background-color: #008c6b !important; }
-        .temporal-box { background-color: #e9f5e9; border: 2px solid #009300; border-radius: 8px; padding: 15px; margin-bottom: 20px;}
-        .fecha-activa-display { font-size: 1.5rem; color: #d56b00; font-weight: bold; background: white; padding: 5px 15px; border-radius: 5px; border: 1px solid #d56b00;}
+        /* PANELES COMPACTOS */
+        .temporal-box { background-color: #e9f5e9; border: 2px solid #009300; border-radius: 8px; padding: 10px 15px; margin-bottom: 10px;}
+        .fecha-activa-display { font-size: 1.2rem; color: #d56b00; font-weight: bold; background: white; padding: 2px 10px; border-radius: 5px; border: 1px solid #d56b00;}
+        .form-label { font-size: 0.85rem; margin-bottom: 0.2rem; }
     </style>
 </head>
 <body>
-<div class="epm-header mb-4">
-    <img src="logo_epm.jpg" onerror="this.src='logo_epm.png'" alt="Logo EPM" style="height: 55px;">
-    <span class="epm-title">Visor Inteligente de Gestión PMT e Interferencias</span>
+<div class="epm-header mb-2">
+    <img src="logo_epm.jpg" onerror="this.src='logo_epm.png'" alt="Logo EPM" style="height: 45px;">
+    <span class="epm-title">Visor Inteligente de Gestión PMT</span>
 </div>
 
-<div class="container-fluid px-4">
+<div class="container-fluid px-3">
     <div class="temporal-box">
-        <h5 class="text-success fw-bold mb-3">⏱️ Reproductor Temporal en Mapa</h5>
-        <div class="row g-3 align-items-end">
+        <div class="row g-2 align-items-end">
             <div class="col-md-2">
-                <label class="form-label fw-bold">Inicio de Recorrido:</label>
-                <input type="date" id="repInicio" class="form-control">
+                <label class="form-label fw-bold text-success">⏱️ Inicio Recorrido:</label>
+                <input type="date" id="repInicio" class="form-control form-control-sm">
             </div>
             <div class="col-md-2">
-                <label class="form-label fw-bold">Fin de Recorrido:</label>
-                <input type="date" id="repFin" class="form-control">
+                <label class="form-label fw-bold text-success">Fin Recorrido:</label>
+                <input type="date" id="repFin" class="form-control form-control-sm">
             </div>
             <div class="col-md-2">
                 <label class="form-label fw-bold">Avanzar cada:</label>
-                <select id="velocidadPaso" class="form-select">
+                <select id="velocidadPaso" class="form-select form-select-sm">
                     <option value="1">1 Día</option>
                     <option value="7">1 Semana</option>
                     <option value="30">1 Mes</option>
@@ -50,7 +52,7 @@
             </div>
             <div class="col-md-2">
                 <label class="form-label fw-bold">Velocidad:</label>
-                <select id="velocidadReproduccion" class="form-select">
+                <select id="velocidadReproduccion" class="form-select form-select-sm">
                     <option value="2400">0.5X (Lento)</option>
                     <option value="1200" selected>1X (Normal)</option>
                     <option value="600">2X (Rápido)</option>
@@ -58,41 +60,41 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <button id="btnPlay" class="btn epm-btn-play w-100 h-100">▶ Iniciar Recorrido</button>
+                <button id="btnPlay" class="btn btn-sm epm-btn-play w-100">▶ Iniciar Recorrido</button>
             </div>
-            <div class="col-md-2 text-center">
-                <span class="fw-bold d-block text-secondary mb-1">Visualizando en Mapa:</span>
-                <div id="fechaActualVisual" class="fecha-activa-display" style="font-size:1.1rem;">--- Esperando ---</div>
+            <div class="col-md-2 text-center d-flex align-items-center justify-content-center gap-2">
+                <span class="fw-bold text-secondary" style="font-size: 0.85rem;">En Mapa:</span>
+                <div id="fechaActualVisual" class="fecha-activa-display">---</div>
             </div>
         </div>
     </div>
 
-    <div class="card mb-4" style="border-color: #009300;">
+    <div class="card mb-3" style="border-color: #009300;">
         <div class="card-header epm-card-header">⚙️ Panel de Filtros Específicos</div>
-        <div class="card-body">
+        <div class="card-body py-2">
             <div class="row g-2">
                 <div class="col-md-2">
-                    <label class="fw-bold text-success" style="font-size:0.9rem;">Contratista:</label>
+                    <label class="fw-bold text-success form-label">Contratista:</label>
                     <select id="filtroContratista" class="form-select form-select-sm"><option value="">Todos</option></select>
                 </div>
                 <div class="col-md-2">
-                    <label class="fw-bold text-success" style="font-size:0.9rem;">Contrato:</label>
+                    <label class="fw-bold text-success form-label">Contrato:</label>
                     <select id="filtroContrato" class="form-select form-select-sm"><option value="">Todos</option></select>
                 </div>
                 <div class="col-md-2">
-                    <label class="fw-bold text-success" style="font-size:0.9rem;">Frente:</label>
+                    <label class="fw-bold text-success form-label">Frente:</label>
                     <select id="filtroFrente" class="form-select form-select-sm"><option value="">Todos</option></select>
                 </div>
                 <div class="col-md-2">
-                    <label class="fw-bold text-success" style="font-size:0.9rem;">Interferencia / Estado:</label>
+                    <label class="fw-bold text-success form-label">Interferencia/Estado:</label>
                     <select id="filtroInterferencia" class="form-select form-select-sm"><option value="">Todos</option></select>
                 </div>
                 <div class="col-md-1">
-                    <label class="fw-bold text-secondary" style="font-size:0.9rem;">F. Inicio:</label>
+                    <label class="fw-bold text-secondary form-label">F. Inicio:</label>
                     <input type="date" id="filtroInicio" class="form-control form-control-sm">
                 </div>
                 <div class="col-md-1">
-                    <label class="fw-bold text-secondary" style="font-size:0.9rem;">F. Fin:</label>
+                    <label class="fw-bold text-secondary form-label">F. Fin:</label>
                     <input type="date" id="filtroFin" class="form-control form-control-sm">
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
@@ -106,7 +108,7 @@
     
     <div class="table-wrapper">
         <div class="table-responsive">
-            <table id="tablaDatos" class="table table-striped table-hover align-middle" style="width:100%">
+            <table id="tablaDatos" class="table table-sm table-striped table-hover align-middle" style="width:100%; font-size: 0.9rem;">
                 <thead class="table-dark text-white">
                     <tr><th>Categoría</th><th>Contrato</th><th>Contratista</th><th>Municipio</th><th>Frente</th><th>Dirección</th><th>Estado/Cierre</th><th>Horario</th><th>Inicio</th><th>Fin</th><th>Días</th></tr>
                 </thead>
@@ -194,8 +196,8 @@
                 columnDefs: [ { targets: 3, visible: false } ], 
                 dom: "<'row'<'col-sm-12 col-md-4'l><'col-sm-12 col-md-4 text-center'B><'col-sm-12 col-md-4'f>>" + "<'row'<'col-sm-12'tr>>" + "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
                 buttons: [
-                    { extend: 'excelHtml5', text: '📥 Exportar Filtro a Excel', className: 'btn btn-success fw-bold' },
-                    { extend: 'csvHtml5', text: '📄 Exportar a CSV', className: 'btn btn-secondary fw-bold' }
+                    { extend: 'excelHtml5', text: '📥 Exportar Filtro a Excel', className: 'btn btn-sm btn-success fw-bold' },
+                    { extend: 'csvHtml5', text: '📄 Exportar CSV', className: 'btn btn-sm btn-secondary fw-bold' }
                 ]
             });
 
@@ -241,7 +243,7 @@
 
         reproductorInterval = setInterval(function() {
             if(fechaReproduccion > fechaFinReal) {
-                detenerReproductor(); $('#fechaActualVisual').text("Finalizado"); return;
+                detenerReproductor(); $('#fechaActualVisual').text("Fin"); return;
             }
             $('#fechaActualVisual').text(fechaReproduccion.toISOString().split('T')[0]);
             table.draw();
@@ -253,7 +255,7 @@
         reproduccionActiva = false;
         clearInterval(reproductorInterval);
         $('#btnPlay').text('▶ Iniciar Recorrido').removeClass('btn-danger').addClass('epm-btn-play');
-        if(!$('#fechaActualVisual').text().includes("Finalizado")) $('#fechaActualVisual').text("--- Pausado ---");
+        if(!$('#fechaActualVisual').text().includes("Fin")) $('#fechaActualVisual').text("---");
     }
 
     function syncMap() {
