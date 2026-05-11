@@ -132,7 +132,6 @@
 
     $('#mapaIframe').on('load', function() { mapaCargado = true; syncMap(); });
 
-    // LECTOR DE CSV A PRUEBA DE FALLOS (Para celdas vacías)
     function parseCSVRow(str) {
         let arr = [], quote = false, start = 0;
         for (let i = 0; i < str.length; i++) {
@@ -146,7 +145,6 @@
         return arr;
     }
 
-    // BUSCADOR INTELIGENTE
     $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
         var pContratista = $('#filtroContratista').val(), pContrato = $('#filtroContrato').val();
         var pFrente = $('#filtroFrente').val(), pInterf = $('#filtroInterferencia').val();
@@ -193,7 +191,7 @@
             var table = $('#tablaDatos').DataTable({
                 language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
                 pageLength: 5, lengthMenu: [5, 10, 25, 50, "Todos"], order: [[0, 'desc']],
-                columnDefs: [ { targets: 3, visible: false } ], // Ocultar Municipio
+                columnDefs: [ { targets: 3, visible: false } ], 
                 dom: "<'row'<'col-sm-12 col-md-4'l><'col-sm-12 col-md-4 text-center'B><'col-sm-12 col-md-4'f>>" + "<'row'<'col-sm-12'tr>>" + "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
                 buttons: [
                     { extend: 'excelHtml5', text: '📥 Exportar Filtro a Excel', className: 'btn btn-success fw-bold' },
@@ -258,7 +256,6 @@
         if(!$('#fechaActualVisual').text().includes("Finalizado")) $('#fechaActualVisual').text("--- Pausado ---");
     }
 
-    // SINCRONIZACIÓN CON EL MAPA (Seguro contra capa invisible)
     function syncMap() {
         if (!mapaCargado) return;
         var table = $('#tablaDatos').DataTable();
@@ -274,7 +271,6 @@
                     
                     if (!layer.feature.estiloOriginal) {
                         let dOp = layer.options.opacity, dFill = layer.options.fillOpacity, dWeight = layer.options.weight;
-                        // Seguro de vida: si guarda estando en 0, lo fuerza al color original de QGIS
                         layer.feature.estiloOriginal = { 
                             opacity: (dOp !== undefined && dOp !== 0) ? dOp : 1, 
                             fillOpacity: (dFill !== undefined && dFill !== 0) ? dFill : 0.6, 
