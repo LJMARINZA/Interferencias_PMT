@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestión PMT Institucional</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/buttons/2.3.6/css/buttons.bootstrap5.min.css" rel="stylesheet">
+    <!-- Librería para crear PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        body { background-color: #f8f9fa; font-family: Arial, sans-serif; }
+        .epm-header { background-color: white; border-bottom: 4px solid #009300; box-shadow: 0 2px 5px rgba(0,0,0,0.1); padding: 5px 20px;}
+        .epm-title { color: #009300; font-weight: bold; font-size: 20px; margin-left: 15px; vertical-align: middle;}
+        .epm-card-header { background-color: #009300; color: white; font-weight: bold; padding: 5px 15px; font-size: 0.9rem;}
+        .epm-btn { background-color: #b7c200; color: #000; font-weight: bold; border: none; }
+        .epm-btn:hover { background-color: #99a800; }
+        .epm-btn-play { background-color: #009300; color: white; font-weight: bold; }
+        .map-wrapper { height: 65vh; border: 3px solid #009300; border-radius: 8px; margin-bottom: 15px; overflow: hidden; position: relative;}
+        .table-wrapper { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #b7c200;}
+        .table-dark { background-color: #008c6b !important; }
+        .temporal-box { background-color: #e9f5e9; border: 2px solid #009300; border-radius: 8px; padding: 10px 15px; margin-bottom: 10px;}
+        
+        /* ESTILOS DEL MODAL PDF Y HOJA A4 */
+        .pdf-modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; overflow-y: auto; display: none; justify-content: center; padding: 20px 0; }
+        .pdf-controls { position: fixed; top: 20px; right: 30px; z-index: 2010; }
+        .a4-preview { width: 210mm; min-height: 297mm; background: white; box-shadow: 0 10px 25px rgba(0,0,0,0.2); padding: 20mm; margin: auto; position: relative; font-family: 'Arial', sans-serif;}
+        .pdf-title { color: #009300; border-bottom: 2px solid #009300; padding-bottom: 10px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;}
+        .pdf-section-title { font-size: 14px; font-weight: bold; color: #009300; text-transform: uppercase; margin-bottom: 10px; margin-top: 20px;}
+        .pdf-kpi-box { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; font-size: 12px; }
+        .pdf-progress-bar { background: #e9ecef; border-radius: 3px; height: 10px; width: 100%; margin-top: 5px; }
+        .pdf-progress-fill { background: #009300; height: 100%; border-radius: 3px; }
+        .pdf-table th, .pdf-table td { border: 1px solid #dee2e6; padding: 6px; font-size: 10px; }
+        .pdf-table th { background-color: #f1f3f5; }
+        .pdf-footer { position: absolute; bottom: 15mm; left: 20mm; right: 20mm; text-align: center; font-size: 9px; color: #6c757d; border-top: 1px solid #dee2e6; padding-top: 5px;}
+    </style>
+</head>
+<body>
+<!-- ENCABEZADO -->
+<div class="epm-header mb-2 d-flex justify-content-between align-items-center">
+    <div>
+        <img src="logo_epm.jpg" onerror="this.src='logo_epm.png'" alt="Logo EPM" style="height: 45px;">
+        <span class="epm-title">Visor Inteligente de Gestión PMT</span>
+    </div>
+    <!-- NUEVO BOTÓN DE REPORTE -->
+    <button onclick="openPdfPreview()" class="btn epm-btn">📄 Generar Informe PDF</button>
+</div>
+<div class="container-fluid px-3">
+    <!-- PANEL TEMPORAL -->
+    <div class="temporal-box">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label fw-bold text-success">⏱️ Inicio Recorrido:</label>
+                <input type="date" id="repInicio" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold text-success">Fin Recorrido:</label>
+                <input type="date" id="repFin" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Avanzar cada:</label>
+                <select id="velocidadPaso" class="form-select form-select-sm"><option value="1">1 Día</option><option value="7">1 Semana</option><option value="30">1 Mes</option></select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Velocidad:</label>
+                <select id="velocidadReproduccion" class="form-select form-select-sm">
+                    <option value="2400">0.5X (Lento)</option><option value="1200" selected>1X (Normal)</option><option value="600">2X (Rápido)</option><option value="400">3X (Muy Rápido)</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button id="btnPlay" class="btn btn-sm epm-btn-play w-100">▶ Iniciar Recorrido</button>
+            </div>
+            <div class="col-md-2 text-center">
+                <div id="fechaActualVisual" class="fecha-activa-display" style="font-size:1.1rem; padding:5px;">---</div>
+            </div>
+        </div>
+    </div>
+<!-- FILTROS MANUALES -->
+    <div class="card mb-3" style="border-color: #009300;">
+        <div class="card-header epm-card-header">⚙️ Panel de Filtros Específicos</div>
+        <div class="card-body py-2">
+            <div class="row g-2">
+                <div class="col-md-2">
+                    <label class="fw-bold text-success form-label">Contratista:</label>
+                    <select id="filtroContratista" class="form-select form-select-sm"><option value="">Todos</option></select>
+                </div>
+                <div class="col-md-2">
+                    <label class="fw-bold text-success form-label">Contrato:</label>
+                    <select id="filtroContrato" class="form-select form-select-sm"><option value="">Todos</option></select>
+                </div>
+                <div class="col-md-2">
+                    <label class="fw-bold text-success form-label">Frente:</label>
+                    <select id="filtroFrente" class="form-select form-select-sm"><option value="">Todos</option></select>
+                </div>
+                <div class="col-md-2">
+                    <label class="fw-bold text-success form-label">Interferencia/Estado:</label>
+                    <select id="filtroInterferencia" class="form-select form-select-sm"><option value="">Todos</option></select>
+                </div>
+                <div class="col-md-1">
+                    <label class="fw-bold text-secondary form-label">F. Inicio:</label>
+                    <input type="date" id="filtroInicio" class="form-control form-control-sm">
+                </div>
+                <div class="col-md-1">
+                    <label class="fw-bold text-secondary form-label">F. Fin:</label>
+                    <input type="date" id="filtroFin" class="form-control form-control-sm">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button id="btnLimpiar" class="btn epm-btn btn-sm w-100">🧹 Limpiar Filtros</button>
+                </div>
+            </div>
+        </div>
+    </div>
+<!-- MAPA Y TABLA -->
+    <div class="map-wrapper"><iframe id="mapaIframe" src="mapa_qgis.html" width="100%" height="100%" style="border:none;"></iframe></div>
+    
+    <div class="table-wrapper">
+        <div class="table-responsive">
+            <table id="tablaDatos" class="table table-sm table-striped table-hover align-middle" style="width:100%; font-size: 0.9rem;">
+                <thead class="table-dark text-white">
+                    <tr><th>Categoría</th><th>Contrato</th><th>Contratista</th><th>Municipio</th><th>Frente</th><th>Dirección</th><th>Estado/Cierre</th><th>Horario</th><th>Inicio</th><th>Fin</th><th>Días</th></tr>
+                </thead>
+                <tbody id="cuerpoTabla"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<!-- ==========================================
+     NUEVO: MODAL DE INFORME PDF (A4)
+     ========================================== -->
+<div id="pdfModal" class="pdf-modal-backdrop">
+    <div class="pdf-controls d-flex gap-2">
+        <button onclick="closePdfPreview()" class="btn btn-secondary fw-bold shadow">✖ Cancelar</button>
+        <button onclick="downloadPDF()" class="btn epm-btn fw-bold shadow">📥 Confirmar Descarga PDF</button>
+    </div>
+<div id="pdf-content" class="a4-preview">
+        <div class="pdf-title">
+            <div>
+                <h2 style="margin:0; font-size: 24px;">Informe Técnico de Gestión PMT</h2>
+                <span style="font-size: 12px; color: #666;" id="pdf-date-gen"></span>
+            </div>
+            <img src="logo_epm.png" onerror="this.src='logo_epm.jpg'" style="height: 40px;" alt="EPM">
+        </div>
+<div class="pdf-section-title">1. Resumen Ejecutivo y Alertas</div>
+        <div id="pdf-executive-summary" style="font-size: 11px; text-align: justify; margin-bottom: 20px; line-height: 1.5;"></div>
+<div class="pdf-section-title">2. Métricas Generales</div>
+        <div class="pdf-kpi-box d-flex flex-wrap justify-content-between mb-4">
+            <div><strong>Total Registros Filtro:</strong> <span id="pdf-total-reg">0</span></div>
+            <div><strong>Interferencias Críticas:</strong> <span id="pdf-total-crit" style="color:red;">0</span></div>
+            <div><strong>Contratos Involucrados:</strong> <span id="pdf-total-cont">0</span></div>
+            <div><strong>Rango Fechas:</strong> <span id="pdf-date-range">N/A</span></div>
+        </div>
+<div class="pdf-section-title">3. Estado de Avance en Tiempo</div>
+        <div id="pdf-progress-container" style="margin-bottom: 20px;"></div>
+<div class="pdf-section-title">4. Detalle de Registros Afectados</div>
+        <table class="table pdf-table w-100">
+            <thead>
+                <tr>
+                    <th>Categoría</th><th>Contrato</th><th>Frente</th><th>Estado/Cierre</th><th>Fechas</th>
+                </tr>
+            </thead>
+            <tbody id="pdf-table-body"></tbody>
+        </table>
+<div class="pdf-footer">
+            Documento generado automáticamente por el Visor Inteligente de Gestión PMT - Grupo EPM. <br> Documento de uso técnico e informativo.
+        </div>
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.3.6/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.html5.min.js"></script>
+<script>
+    var mapaCargado = false;
+    var reproduccionActiva = false;
+    var fechaReproduccion = null;
+    var reproductorInterval = null;
+$('#mapaIframe').on('load', function() { mapaCargado = true; syncMap(); });
+function parseCSVRow(str) {
+        let arr = [], quote = false, start = 0;
+        for (let i = 0; i < str.length; i++) {
+            if (str[i] === '"') quote = !quote;
+            if (str[i] === ',' && !quote) { arr.push(str.substring(start, i).replace(/^"|"$/g, '').trim()); start = i + 1; }
+        }
+        arr.push(str.substring(start).replace(/^"|"$/g, '').trim());
+        return arr;
+    }
+$.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+        var pContratista = $('#filtroContratista').val(), pContrato = $('#filtroContrato').val();
+        var pFrente = $('#filtroFrente').val(), pInterf = $('#filtroInterferencia').val();
+        
+        if (pContratista && !data[2].includes(pContratista)) return false;
+        if (pContrato && !data[1].includes(pContrato)) return false;
+        if (pFrente && !data[4].includes(pFrente)) return false;
+        if (pInterf && data[6] !== pInterf && data[0] !== pInterf) return false;
+var proyStart = (data[8] && data[8] !== 'N/A') ? new Date(data[8] + 'T00:00:00') : null;
+        var proyEnd = (data[9] && data[9] !== 'N/A') ? new Date(data[9] + 'T23:59:59') : null;
+if (reproduccionActiva && fechaReproduccion) {
+            if (proyStart && proyEnd) {
+                if (fechaReproduccion >= proyStart && fechaReproduccion <= proyEnd) return true;
+                return false;
+            }
+            return false;
+        } 
+        
+        var fInicio = $('#filtroInicio').val(), fFin = $('#filtroFin').val();
+        if (fInicio && fFin) {
+            var filtroStart = new Date(fInicio + 'T00:00:00'), filtroEnd = new Date(fFin + 'T23:59:59');
+            if (proyStart && proyEnd) {
+                if (!(proyStart <= filtroEnd && proyEnd >= filtroStart)) return false;
+            } else { return false; }
+        }
+        return true;
+    });
+$(document).ready(function() {
+        fetch('reporte_dinamico.csv').then(response => response.text()).then(data => {
+            const filas = data.split('\n').slice(1);
+            let html = '';
+            filas.forEach(fila => {
+                if(fila.trim() === '') return;
+                const columnas = parseCSVRow(fila);
+                if (columnas && columnas.length >= 11) {
+                    html += `<tr>`; columnas.forEach(col => { html += `<td>${col}</td>`; }); html += `</tr>`;
+                }
+            });
+            $('#cuerpoTabla').html(html);
+            
+            var table = $('#tablaDatos').DataTable({
+                language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
+                pageLength: 5, lengthMenu: [5, 10, 25, 50, "Todos"], order: [[0, 'desc']],
+                columnDefs: [ { targets: 3, visible: false } ], 
+                dom: "<'row'<'col-sm-12 col-md-4'l><'col-sm-12 col-md-4 text-center'B><'col-sm-12 col-md-4'f>>" + "<'row'<'col-sm-12'tr>>" + "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+                buttons: [
+                    { extend: 'excelHtml5', text: '📥 CSV/Excel', className: 'btn btn-sm btn-success fw-bold' }
+                ]
+            });
+function getUniqueClean(columnIndex) {
+                let uniqueSet = new Set();
+                table.column(columnIndex).data().each(function(val) {
+                    if(!val || val === 'N/A' || val === 'Varios') return;
+                    if(val.includes(' vs ')) { val.split(' vs ').forEach(v => uniqueSet.add(v.trim())); } 
+                    else if(val.includes(' / ')) { val.split(' / ').forEach(v => uniqueSet.add(v.trim())); }
+                    else { uniqueSet.add(val.trim()); }
+                });
+                return Array.from(uniqueSet).sort();
+            }
+getUniqueClean(2).forEach(d => $('#filtroContratista').append('<option value="'+d+'">'+d+'</option>'));
+            getUniqueClean(1).forEach(d => $('#filtroContrato').append('<option value="'+d+'">'+d+'</option>'));
+            getUniqueClean(4).forEach(d => $('#filtroFrente').append('<option value="'+d+'">'+d+'</option>'));
+            table.column(6).data().unique().sort().each(function(d) { if(d && d !== 'N/A') $('#filtroInterferencia').append('<option value="'+d+'">'+d+'</option>'); });
+$('#filtroContratista, #filtroContrato, #filtroFrente, #filtroInterferencia, #filtroInicio, #filtroFin').on('change', function() { table.draw(); });
+            
+            $('#btnLimpiar').click(function() { 
+                $('#filtroContratista, #filtroContrato, #filtroFrente, #filtroInterferencia, #filtroInicio, #filtroFin, #repInicio, #repFin').val(''); 
+                detenerReproductor(); table.draw(); 
+            });
+            
+            table.on('draw.dt', function() { syncMap(); });
+$('#btnPlay').click(function() {
+                if (reproduccionActiva) { detenerReproductor(); } else { iniciarReproductor(table); }
+            });
+$('#velocidadReproduccion').on('change', function() {
+                if(reproduccionActiva) { clearInterval(reproductorInterval); iniciarCiclo(table); }
+            });
+        });
+    });
+/* --- LÓGICA DEL REPRODUCTOR TEMPORAL --- */
+    function iniciarReproductor(table) {
+        var startVal = $('#repInicio').val(), endVal = $('#repFin').val();
+        if(!startVal || !endVal) { alert("⚠️ Selecciona Fecha de Inicio y Fin del recorrido."); return; }
+        reproduccionActiva = true;
+        fechaReproduccion = new Date(startVal + 'T00:00:00');
+        $('#btnPlay').text('⏸ Pausar Recorrido').removeClass('epm-btn-play').addClass('btn-danger');
+        iniciarCiclo(table);
+    }
+    function iniciarCiclo(table) {
+        var endVal = $('#repFin').val();
+        var fechaFinReal = new Date(endVal + 'T23:59:59');
+        var paso = parseInt($('#velocidadPaso').val());
+        var velocidadMs = parseInt($('#velocidadReproduccion').val());
+reproductorInterval = setInterval(function() {
+            if(fechaReproduccion > fechaFinReal) { detenerReproductor(); $('#fechaActualVisual').text("Fin"); return; }
+            $('#fechaActualVisual').text(fechaReproduccion.toISOString().split('T')[0]);
+            table.draw();
+            fechaReproduccion.setDate(fechaReproduccion.getDate() + paso);
+        }, velocidadMs);
+    }
+    function detenerReproductor() {
+        reproduccionActiva = false;
+        clearInterval(reproductorInterval);
+        $('#btnPlay').text('▶ Iniciar Recorrido').removeClass('btn-danger').addClass('epm-btn-play');
+        if(!$('#fechaActualVisual').text().includes("Fin")) $('#fechaActualVisual').text("---");
+    }
+/* --- SINCRONIZACIÓN MAPA --- */
+    function syncMap() {
+        if (!mapaCargado) return;
+        var table = $('#tablaDatos').DataTable();
+        var frentesActivos = [];
+        table.rows({ filter: 'applied' }).data().each(function(row) { frentesActivos.push(row[4]); }); 
+var iframeWin = document.getElementById('mapaIframe').contentWindow;
+        if(iframeWin.map) {
+            iframeWin.map.eachLayer(function(layer) {
+                if(layer.feature && layer.feature.properties) {
+                    var props = layer.feature.properties;
+                    var nombreMapa = props['frente'] || props['FRENTES'] || props['Name'] || props['FRENTE'];
+                    
+                    if (!layer.feature.estiloOriginal) {
+                        let opts = layer.options;
+                        if (opts.opacity !== 0 && opts.fillOpacity !== 0) {
+                            layer.feature.estiloOriginal = { opacity: opts.opacity, fillOpacity: opts.fillOpacity, weight: opts.weight, color: opts.color, fillColor: opts.fillColor };
+                        }
+                        layer.on('mouseout popupclose', function() {
+                            let esVisible = frentesActivos.some(f => f.includes(nombreMapa) || (nombreMapa && nombreMapa.includes(f)));
+                            if(esVisible && layer.feature.estiloOriginal) layer.setStyle(layer.feature.estiloOriginal);
+                        });
+                    }
+let esVisible = frentesActivos.some(f => f.includes(nombreMapa) || (nombreMapa && nombreMapa.includes(f)));
+                    if (esVisible) { if(layer.setStyle && layer.feature.estiloOriginal) layer.setStyle(layer.feature.estiloOriginal); } 
+                    else { if(layer.setStyle) layer.setStyle({opacity: 0, fillOpacity: 0, weight: 0}); }
+                }
+            });
+        }
+    }
+/* ==========================================
+       NUEVO: GENERADOR DE INFORME PDF
+       ========================================== */
+    function openPdfPreview() {
+        const table = $('#tablaDatos').DataTable();
+        const filas = table.rows({ filter: 'applied' }).data();
+        
+        if(filas.length === 0) {
+            alert("No hay datos en la tabla para generar el informe. Ajusta los filtros.");
+            return;
+        }
+// Datos para KPIs
+        let totalReg = filas.length;
+        let criticos = 0;
+        let contratosSet = new Set();
+        let minDate = null, maxDate = null;
+        
+        let pdfTableRows = '';
+        let progressHTML = '';
+        const hoy = new Date();
+filas.each(function(row, index) {
+            // Índices: 0:Cat, 1:Contrato, 4:Frente, 6:Estado, 8:Inicio, 9:Fin, 10:Dias
+            if(row[6].includes('CRITICO')) criticos++;
+            row[1].split(' vs ').forEach(c => contratosSet.add(c.trim()));
+let dIniStr = row[8], dFinStr = row[9];
+            if(dIniStr !== 'N/A' && dFinStr !== 'N/A') {
+                let start = new Date(dIniStr + 'T00:00:00');
+                let end = new Date(dFinStr + 'T00:00:00');
+                if(!minDate || start < minDate) minDate = start;
+                if(!maxDate || end > maxDate) maxDate = end;
+// Calcular progreso
+                let totalDias = parseInt(row[10]) || 1;
+                let progressPercent = 0;
+                if (hoy >= end) progressPercent = 100;
+                else if (hoy > start) {
+                    let diasTr = Math.ceil(Math.abs(hoy - start) / (1000*60*60*24));
+                    progressPercent = Math.min(100, Math.round((diasTr/totalDias)*100));
+                }
+                
+                let barColor = row[6].includes('CRITICO') ? '#dc3545' : '#009300';
+                
+                // Limitar barras de progreso a las primeras 10 para no desbordar el A4
+                if(index < 10) {
+                    progressHTML += `
+                        <div style="margin-bottom:8px;">
+                            <div style="display:flex; justify-content:space-between; font-size:10px;">
+                                <strong>${row[4]}</strong> <span>${progressPercent}%</span>
+                            </div>
+                            <div class="pdf-progress-bar">
+                                <div class="pdf-progress-fill" style="width:${progressPercent}%; background-color:${barColor};"></div>
+                            </div>
+                        </div>`;
+                }
+            }
+// Llenar tabla del PDF (Limitamos a 15 filas aprox para que quepa en 1 hoja)
+            if(index < 15) {
+                pdfTableRows += `
+                    <tr>
+                        <td>${row[0]}</td>
+                        <td>${row[1]}</td>
+                        <td><div style="width:100px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${row[4]}</div></td>
+                        <td>${row[6]}</td>
+                        <td>${dIniStr !== 'N/A' ? dIniStr + ' al ' + dFinStr : 'N/A'}</td>
+                    </tr>`;
+            }
+        });
+if(filas.length > 15) {
+            pdfTableRows += `<tr><td colspan="5" style="text-align:center; font-style:italic;">... y ${filas.length - 15} registros más ocultos. (Ver Excel para detalle total)</td></tr>`;
+        }
+        if(progressHTML === '') progressHTML = '<i>No hay trazados con fechas válidas para calcular progreso.</i>';
+// Llenar Modal
+        let dateR = minDate && maxDate ? `${minDate.toLocaleDateString('es-CO')} al ${maxDate.toLocaleDateString('es-CO')}` : 'Sin fechas';
+        document.getElementById('pdf-date-gen').innerText = 'Generado el: ' + new Date().toLocaleString('es-CO');
+        document.getElementById('pdf-total-reg').innerText = totalReg;
+        document.getElementById('pdf-total-crit').innerText = criticos;
+        document.getElementById('pdf-total-cont').innerText = contratosSet.size;
+        document.getElementById('pdf-date-range').innerText = dateR;
+        
+        let alertHTML = criticos > 0 ? `<br><br><span style="color:red; font-weight:bold;">⚠️ ALERTA:</span> Se han detectado ${criticos} interferencias críticas en el periodo analizado.` : '';
+        document.getElementById('pdf-executive-summary').innerHTML = `El presente documento resume la gestión e interacción espacial de Planes de Manejo de Tránsito (PMT) en el Visor Institucional. En el filtro actual, se analizan ${contratosSet.size} contratos y ${totalReg} frentes/interferencias. ${alertHTML}`;
+        
+        document.getElementById('pdf-progress-container').innerHTML = progressHTML;
+        document.getElementById('pdf-table-body').innerHTML = pdfTableRows;
+// Mostrar Modal
+        document.getElementById('pdfModal').style.display = 'flex';
+    }
+function closePdfPreview() {
+        document.getElementById('pdfModal').style.display = 'none';
+    }
+function downloadPDF() {
+        const element = document.getElementById('pdf-content');
+        const opt = {
+            margin:       0,
+            filename:     `Informe_PMT_EPM_${new Date().getTime()}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save().then(() => { closePdfPreview(); });
+    }
+</script>
+</body>
+</html>
