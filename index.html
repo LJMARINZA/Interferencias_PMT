@@ -15,11 +15,9 @@
         .epm-btn { background-color: #b7c200; color: #000; font-weight: bold; border: none; }
         .epm-btn:hover { background-color: #99a800; }
         .epm-btn-play { background-color: #009300; color: white; font-weight: bold; }
-        /* MAPA MÁS GRANDE */
         .map-wrapper { height: 65vh; border: 3px solid #009300; border-radius: 8px; margin-bottom: 15px; overflow: hidden; position: relative;}
         .table-wrapper { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #b7c200;}
         .table-dark { background-color: #008c6b !important; }
-        /* PANELES COMPACTOS */
         .temporal-box { background-color: #e9f5e9; border: 2px solid #009300; border-radius: 8px; padding: 10px 15px; margin-bottom: 10px;}
         .fecha-activa-display { font-size: 1.2rem; color: #d56b00; font-weight: bold; background: white; padding: 2px 10px; border-radius: 5px; border: 1px solid #d56b00;}
         .form-label { font-size: 0.85rem; margin-bottom: 0.2rem; }
@@ -32,6 +30,7 @@
 </div>
 
 <div class="container-fluid px-3">
+    <!-- PANEL TEMPORAL -->
     <div class="temporal-box">
         <div class="row g-2 align-items-end">
             <div class="col-md-2">
@@ -69,6 +68,7 @@
         </div>
     </div>
 
+    <!-- FILTROS MANUALES -->
     <div class="card mb-3" style="border-color: #009300;">
         <div class="card-header epm-card-header">⚙️ Panel de Filtros Específicos</div>
         <div class="card-body py-2">
@@ -104,8 +104,10 @@
         </div>
     </div>
 
+    <!-- MAPA -->
     <div class="map-wrapper"><iframe id="mapaIframe" src="mapa_qgis.html" width="100%" height="100%" style="border:none;"></iframe></div>
     
+    <!-- TABLA -->
     <div class="table-wrapper">
         <div class="table-responsive">
             <table id="tablaDatos" class="table table-sm table-striped table-hover align-middle" style="width:100%; font-size: 0.9rem;">
@@ -147,13 +149,15 @@
         return arr;
     }
 
+    // EL NUEVO CEREBRO DE FILTROS (Usa Includes para cruzar interferencias)
     $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
         var pContratista = $('#filtroContratista').val(), pContrato = $('#filtroContrato').val();
         var pFrente = $('#filtroFrente').val(), pInterf = $('#filtroInterferencia').val();
         
-        if (pContratista && data[2] !== pContratista) return false;
-        if (pContrato && data[1] !== pContrato) return false;
-        if (pFrente && data[4] !== pFrente) return false;
+        // Uso de .includes() permite que al elegir "CW1", se muestren los cruces "CW1 vs CW2"
+        if (pContratista && !data[2].includes(pContratista)) return false;
+        if (pContrato && !data[1].includes(pContrato)) return false;
+        if (pFrente && !data[4].includes(pFrente)) return false;
         if (pInterf && data[6] !== pInterf && data[0] !== pInterf) return false;
 
         var proyStart = (data[8] && data[8] !== 'N/A') ? new Date(data[8] + 'T00:00:00') : null;
@@ -193,7 +197,7 @@
             var table = $('#tablaDatos').DataTable({
                 language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
                 pageLength: 5, lengthMenu: [5, 10, 25, 50, "Todos"], order: [[0, 'desc']],
-                columnDefs: [ { targets: 3, visible: false } ], 
+                columnDefs: [ { targets: 3, visible: false } ], // Oculta municipio visualmente
                 dom: "<'row'<'col-sm-12 col-md-4'l><'col-sm-12 col-md-4 text-center'B><'col-sm-12 col-md-4'f>>" + "<'row'<'col-sm-12'tr>>" + "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
                 buttons: [
                     { extend: 'excelHtml5', text: '📥 Exportar Filtro a Excel', className: 'btn btn-sm btn-success fw-bold' },
@@ -201,9 +205,22 @@
                 ]
             });
 
-            table.column(2).data().unique().sort().each(function(d) { if(d) $('#filtroContratista').append('<option value="'+d+'">'+d+'</option>'); });
-            table.column(1).data().unique().sort().each(function(d) { if(d) $('#filtroContrato').append('<option value="'+d+'">'+d+'</option>'); });
-            table.column(4).data().unique().sort().each(function(d) { if(d) $('#filtroFrente').append('<option value="'+d+'">'+d+'</option>'); });
+            // Extraemos solo los valores únicos reales (limpiando los "vs" de los selects para que no se vea feo)
+            function getUniqueClean(columnIndex) {
+                let uniqueSet = new Set();
+                table.column(columnIndex).data().each(function(val) {
+                    if(!val || val === 'N/A' || val === 'Varios') return;
+                    if(val.includes(' vs ')) { val.split(' vs ').forEach(v => uniqueSet.add(v.trim())); } 
+                    else if(val.includes(' / ')) { val.split(' / ').forEach(v => uniqueSet.add(v.trim())); }
+                    else { uniqueSet.add(val.trim()); }
+                });
+                return Array.from(uniqueSet).sort();
+            }
+
+            getUniqueClean(2).forEach(d => $('#filtroContratista').append('<option value="'+d+'">'+d+'</option>'));
+            getUniqueClean(1).forEach(d => $('#filtroContrato').append('<option value="'+d+'">'+d+'</option>'));
+            getUniqueClean(4).forEach(d => $('#filtroFrente').append('<option value="'+d+'">'+d+'</option>'));
+            
             table.column(6).data().unique().sort().each(function(d) { if(d && d !== 'N/A') $('#filtroInterferencia').append('<option value="'+d+'">'+d+'</option>'); });
 
             $('#filtroContratista, #filtroContrato, #filtroFrente, #filtroInterferencia, #filtroInicio, #filtroFin').on('change', function() { table.draw(); });
@@ -280,7 +297,10 @@
                         };
                     }
 
-                    if (frentesActivos.includes(nombreMapa)) {
+                    // Se muestra si es exactamente igual o si es parte de un "cruce" de frentes (frente1 / frente2)
+                    let esVisible = frentesActivos.some(f => f.includes(nombreMapa) || (nombreMapa && nombreMapa.includes(f)));
+
+                    if (esVisible) {
                         if(layer.setStyle) layer.setStyle({ opacity: layer.feature.estiloOriginal.opacity, fillOpacity: layer.feature.estiloOriginal.fillOpacity, weight: layer.feature.estiloOriginal.weight });
                     } else {
                         if(layer.setStyle) layer.setStyle({opacity: 0, fillOpacity: 0, weight: 0});
