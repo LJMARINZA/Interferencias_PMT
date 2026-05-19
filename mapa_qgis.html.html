@@ -62,7 +62,7 @@
         }
         var map = L.map('map', {
             zoomControl:false, maxZoom:28, minZoom:1
-        }).fitBounds([[6.142166987652761,-75.72304785436444],[6.348889308224636,-75.37090785375192]]);
+        }).fitBounds([[6.155325220619874,-75.64152176321716],[6.219527360928963,-75.53356831195372]]);
         var hash = new L.Hash(map);
         map.attributionControl.setPrefix('<a href="https://github.com/qgis2web/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
         var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
@@ -189,8 +189,7 @@
             });
             var popupContent = '<table>\
                     <tr>\
-                        <th scope="row">kmz_origen</th>\
-                        <td class="visible-with-data" id="kmz_origen">' + (feature.properties['kmz_origen'] !== null ? autolinker.link(String(feature.properties['kmz_origen']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                        <td colspan="2">' + (feature.properties['kmz_origen'] !== null ? autolinker.link(String(feature.properties['kmz_origen']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
                     </tr>\
                     <tr>\
                         <th scope="row">frente</th>\
@@ -209,8 +208,7 @@
                         <td class="visible-with-data" id="municipio">' + (feature.properties['municipio'] !== null ? autolinker.link(String(feature.properties['municipio']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
                     </tr>\
                     <tr>\
-                        <th scope="row">direccion</th>\
-                        <td class="visible-with-data" id="direccion">' + (feature.properties['direccion'] !== null ? autolinker.link(String(feature.properties['direccion']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                        <td colspan="2">' + (feature.properties['direccion'] !== null ? autolinker.link(String(feature.properties['direccion']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
                     </tr>\
                     <tr>\
                         <th scope="row">proyecto</th>\
