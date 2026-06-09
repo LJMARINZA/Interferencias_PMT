@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestión PMT Institucional</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/buttons/2.3.6/css/buttons.bootstrap5.min.css" rel="stylesheet">
+
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .epm-header { background-color: white; border-bottom: 4px solid #009300; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 8px 20px;}
+        .epm-title { color: #009300; font-weight: bold; font-size: 22px; margin-left: 15px; vertical-align: middle;}
+        .epm-card-header { background-color: #009300; color: white; font-weight: bold; padding: 8px 15px; font-size: 0.95rem;}
+        .epm-btn { background-color: #b7c200; color: #000; font-weight: bold; border: none; transition: 0.3s;}
+        .epm-btn:hover { background-color: #99a800; transform: translateY(-1px); }
+        .epm-btn-play { background-color: #009300; color: white; font-weight: bold; }
+
+        .map-wrapper { height: 60vh; border: 3px solid #009300; border-radius: 8px; margin-bottom: 15px; overflow: hidden; position: relative; background: #e9ecef;}
+        .table-wrapper { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #b7c200;}
+        .table-dark { background-color: #008c6b !important; }
+        .temporal-box { background-color: #e9f5e9; border: 2px solid #009300; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px;}
+        .fecha-activa-display { font-size: 1.2rem; color: #d56b00; font-weight: bold; background: white; padding: 3px 15px; border-radius: 5px; border: 1px solid #d56b00;}
+
+        /* Estilos Select2 integrados con el theme institucional */
+        .select2-container--bootstrap-5 .select2-selection { font-size: 0.875rem; min-height: 31px; }
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered { padding: 0 4px; }
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice { background-color: #009300; border-color: #007a00; color: white; font-size: 0.75rem; padding: 1px 6px; margin-top: 2px;}
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove { color: rgba(255,255,255,0.8); }
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove:hover { color: white; }
+        .select2-container { width: 100% !important; }
+
+        /* Limitar altura de los filtros y forzar a que el texto quede inmerso en la casilla sin desbordar */
+        .select2-container--bootstrap-5 .select2-selection--multiple {
+            max-height: 38px;
+            overflow-y: auto;
+        }
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+            max-width: 95%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: inline-block;
+        }
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-search { width: 100%; }
+
+        /* DISEÑO MODAL PDF */
+        .pdf-modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; overflow-y: auto; display: none; justify-content: center; padding: 30px 0; }
+        .pdf-controls { position: fixed; top: 20px; right: 30px; z-index: 2010; }
+        .a4-preview { width: 210mm; min-height: 297mm; background: white; box-shadow: 0 10px 25px rgba(0,0,0,0.3); padding-bottom: 20mm; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333;}
+        .pdf-header-banner { background-color: #009300; color: white; padding: 20px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 5px solid #b7c200;}
+        .pdf-header-title { margin: 0; font-size: 22px; font-weight: bold; letter-spacing: 0.5px;}
+        .pdf-header-date { font-size: 12px; opacity: 0.9;}
+        .pdf-body { padding: 25px 30px; }
+        .pdf-grid { display: flex; gap: 20px; margin-bottom: 20px; }
+        .pdf-map-container { width: 55%; border: 2px solid #e9ecef; border-radius: 6px; overflow: hidden; background: #f8f9fa; display: flex; flex-direction: column;}
+        .pdf-map-title { background: #f8f9fa; padding: 8px 15px; font-size: 12px; font-weight: bold; color: #009300; border-bottom: 1px solid #e9ecef;}
+        .pdf-map-image { width: 100%; height: 220px; object-fit: cover; }
+        .pdf-kpi-container { width: 45%; display: flex; flex-direction: column; gap: 10px;}
+        .pdf-kpi-box { background: #f8f9fa; border-left: 4px solid #009300; padding: 12px 15px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);}
+        .pdf-kpi-title { font-size: 11px; color: #6c757d; text-transform: uppercase; margin-bottom: 4px; font-weight: bold;}
+        .pdf-kpi-value { font-size: 18px; font-weight: bold; color: #343a40; margin:0;}
+        .pdf-section-title { font-size: 14px; font-weight: bold; color: #009300; text-transform: uppercase; margin: 20px 0 10px 0; border-bottom: 2px solid #e9ecef; padding-bottom: 5px;}
+
+        .pdf-table { width: 100%; border-collapse: collapse;}
+        .pdf-table th, .pdf-table td { border: 1px solid #dee2e6; padding: 8px; font-size: 10px; }
+        .pdf-table th { background-color: #f1f3f5; color: #495057;}
+        .pdf-table tr { page-break-inside: avoid; }
+        .pdf-progress-wrap { margin-bottom: 10px; page-break-inside: avoid; }
+        .pdf-progress-header { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 3px; font-weight: bold;}
+        .pdf-progress-bar { background: #e9ecef; border-radius: 3px; height: 8px; width: 100%; }
+        .pdf-progress-fill { height: 100%; border-radius: 3px; }
+
+        .semaforo-verde  { color: #009300; font-weight: bold; }
+        .semaforo-amarillo { color: #e6a800; font-weight: bold; }
+        .semaforo-rojo   { color: #dc3545; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="epm-header mb-3 d-flex justify-content-between align-items-center">
+    <div>
+        <img src="logo_epm.jpg" onerror="this.src='logo_epm.png'" alt="Logo EPM" style="height: 45px;">
+        <span class="epm-title">Visor Inteligente de Gestión PMT</span>
+    </div>
+    <button onclick="openPdfPreview()" class="btn epm-btn shadow-sm">
+        <span id="btn-pdf-text">📄 Generar Informe PDF Ejecutivo</span>
+    </button>
+</div>
+
+<div class="container-fluid px-3">
+    <div id="error-alerta" class="alert alert-danger d-none fw-bold" role="alert">
+        ⚠️ ATENCIÓN: El navegador bloqueó los datos (CORS). Sube esta carpeta a GitHub y ábrela desde el enlace web.
+    </div>
+
+    <div class="temporal-box">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label fw-bold text-success">⏱️ Inicio Recorrido:</label>
+                <input type="date" id="repInicio" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold text-success">Fin Recorrido:</label>
+                <input type="date" id="repFin" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Avanzar cada:</label>
+                <select id="velocidadPaso" class="form-select form-select-sm"><option value="1">1 Día</option><option value="7">1 Semana</option><option value="30">1 Mes</option></select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Velocidad:</label>
+                <select id="velocidadReproduccion" class="form-select form-select-sm">
+                    <option value="2400">0.5X (Lento)</option><option value="1200" selected>1X (Normal)</option><option value="600">2X (Rápido)</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button id="btnPlay" class="btn btn-sm epm-btn-play w-100">▶ Iniciar Recorrido</button>
+            </div>
+            <div class="col-md-2 text-center d-flex align-items-center justify-content-center gap-2">
+                <span class="fw-bold text-secondary" style="font-size: 0.85rem;">En Mapa:</span>
+                <div id="fechaActualVisual" class="fecha-activa-display">---</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3" style="border-color: #009300;">
+        <div class="card-header epm-card-header">⚙️ Panel de Filtros Específicos</div>
+        <div class="card-body py-2">
+            <div class="row g-2">
+                <div class="col-md-2">
+                    <label class="fw-bold text-success form-label">Contratista:</label>
+                    <select id="filtroContratista" class="form-select form-select-sm" multiple>
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="fw-bold text-success form-label">Contrato:</label>
+                    <select id="filtroContrato" class="form-select form-select-sm" multiple>
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="fw-bold text-success form-label">Frente:</label>
+                    <select id="filtroFrente" class="form-select form-select-sm" multiple>
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="fw-bold text-success form-label">Interferencia/Estado:</label>
+                    <select id="filtroInterferencia" class="form-select form-select-sm" multiple>
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="fw-bold text-secondary form-label">F. Inicio:</label>
+                    <input type="date" id="filtroInicio" class="form-control form-control-sm">
+                </div>
+                <div class="col-md-1">
+                    <label class="fw-bold text-secondary form-label">F. Fin:</label>
+                    <input type="date" id="filtroFin" class="form-control form-control-sm">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button id="btnLimpiar" class="btn epm-btn btn-sm w-100">🧹 Limpiar Filtros</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="map-wrapper"><iframe id="mapaIframe" src="mapa_qgis.html" width="100%" height="100%" style="border:none;"></iframe></div>
+
+    <div class="table-wrapper">
+        <div
