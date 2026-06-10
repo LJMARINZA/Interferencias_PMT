@@ -28,10 +28,7 @@
         .fecha-activa-display { font-size: 1.2rem; color: #d56b00; font-weight: bold; background: white; padding: 3px 15px; border-radius: 5px; border: 1px solid #d56b00; }
 
         .select2-container--bootstrap-5 .select2-selection {
-            font-size: 0.8rem;
-            min-height: 31px;
-            max-height: 56px;
-            overflow: hidden;
+            font-size: 0.8rem; min-height: 31px; max-height: 56px; overflow: hidden;
         }
         .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered {
             padding: 2px 4px; display: flex; flex-wrap: wrap; gap: 2px; overflow: hidden; max-width: 100%;
@@ -253,7 +250,7 @@
                     
                     <div id="pdf-map-spinner" class="pdf-map-loading">
                         <div class="spinner"></div>
-                        <span>Capturando vista del mapa…</span>
+                        <span>Cargando imagen capturada…</span>
                     </div>
                     
                     <img id="pdf-map-snapshot" class="pdf-map-image" src="" alt="Vista geoespacial del mapa"
@@ -328,7 +325,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
 <script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.html5.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
 /* =========================================================================
@@ -644,77 +641,82 @@ $(document).ready(function() {
 });
 
 /* =========================================================================
-   [SOLUCIÓN DEFINITIVA] CAPTURA CON APLANAMIENTO 2D EN EL DOM VIVO
+   [SOLUCIÓN DEFINITIVA]: API NATIVA DE CAPTURA DE PANTALLA (SCREENSHOT REAL)
+   Esta función utiliza el hardware del navegador para tomar una foto exacta
+   de lo que el usuario está viendo, saltándose todas las barreras de CORS.
    ========================================================================= */
 async function capturarVistaInforme() {
     try {
         const btn = document.getElementById("btnCapturaMapa");
+        const textoOriginal = btn.innerHTML;
+        
         btn.disabled = true;
-        btn.innerHTML = "⏳ Preparando mapa...";
+        btn.innerHTML = "⏳ Selecciona 'Esta pestaña' en el menú emergente...";
 
-        const iframe = document.getElementById("mapaIframe");
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-        
-        // Encontrar el contenedor raíz del mapa (QGIS2Web usa #map por defecto)
-        const mapDiv = iframeDoc.getElementById('map') || iframeDoc.querySelector('.leaflet-container') || iframeDoc.body;
-
-        // 1. APLANAMIENTO 3D A 2D EN EL DOM EN VIVO
-        // html2canvas tiene un bug documentado con translate3d de Leaflet.
-        // Modificamos el DOM real temporalmente para asegurar la captura exacta.
-        const elementosModificados = [];
-        const todosLosNodos = mapDiv.querySelectorAll('*');
-        
-        todosLosNodos.forEach(el => {
-            const transform = el.style.transform;
-            if (transform && transform.includes('translate3d')) {
-                // Guardamos el estilo original
-                elementosModificados.push({ elemento: el, original: transform });
-                // Reemplazamos translate3d(x, y, z) por translate(x, y)
-                el.style.transform = transform.replace(/translate3d\(([^,]+),\s*([^,]+),\s*[^)]+\)/gi, 'translate($1, $2)');
-            }
+        // 1. Invocar la API Nativa de Captura de Pantalla
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+            preferCurrentTab: true, // Sugerir al navegador que seleccione la pestaña actual
+            video: { displaySurface: "browser" },
+            audio: false
         });
 
-        // Forzamos un reflow del navegador para aplicar los estilos 2D
-        await new Promise(r => setTimeout(r, 300));
+        const video = document.createElement('video');
+        video.srcObject = stream;
         
-        btn.innerHTML = "📸 Capturando...";
-
-        // 2. CAPTURA DESDE EL CONTEXTO PADRE
-        const rect = mapDiv.getBoundingClientRect();
-        
-        const canvas = await window.html2canvas(mapDiv, {
-            useCORS: true,
-            allowTaint: false,
-            backgroundColor: "#c8dce8",
-            width: rect.width,
-            height: rect.height,
-            scale: 1.5, // Balance ideal entre calidad y peso
-            logging: false
+        // Esperar a que el video comience a procesar el stream de la pantalla
+        await new Promise((resolve) => {
+            video.onloadedmetadata = () => {
+                video.play();
+                resolve();
+            };
         });
 
-        // 3. RESTAURACIÓN DEL DOM A 3D
-        elementosModificados.forEach(item => {
-            item.elemento.style.transform = item.original;
-        });
+        // Dar un pequeño respiro para que el primer frame esté nítido
+        await new Promise(r => setTimeout(r, 400));
 
-        // 4. VALIDACIÓN Y GUARDADO
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
-        if (!dataUrl || dataUrl === "data:,") {
-            throw new Error("El renderizado devolvió un lienzo vacío.");
-        }
+        // 2. Tomar la fotografía completa de la pestaña
+        const canvasFull = document.createElement('canvas');
+        canvasFull.width = video.videoWidth;
+        canvasFull.height = video.videoHeight;
+        const ctxFull = canvasFull.getContext('2d');
+        ctxFull.drawImage(video, 0, 0, canvasFull.width, canvasFull.height);
 
-        mapaSnapshotPDF = dataUrl;
+        // 3. Detener la grabación de pantalla inmediatamente
+        stream.getTracks().forEach(track => track.stop());
+
+        // 4. Recortar exactamente el área del iframe (.map-wrapper)
+        const mapWrapper = document.querySelector('.map-wrapper');
+        const rect = mapWrapper.getBoundingClientRect();
+        
+        // Calcular la escala (resolución del video vs resolución lógica de la ventana)
+        const scaleX = canvasFull.width / window.innerWidth;
+        const scaleY = canvasFull.height / window.innerHeight;
+
+        const canvasRecortado = document.createElement('canvas');
+        canvasRecortado.width = rect.width * scaleX;
+        canvasRecortado.height = rect.height * scaleY;
+        const ctxRecortado = canvasRecortado.getContext('2d');
+
+        // Extraer solo la porción del mapa usando las coordenadas
+        ctxRecortado.drawImage(
+            canvasFull,
+            rect.left * scaleX, rect.top * scaleY, rect.width * scaleX, rect.height * scaleY, // Área fuente
+            0, 0, canvasRecortado.width, canvasRecortado.height // Área destino
+        );
+
+        // 5. Guardar la imagen final para el PDF
+        mapaSnapshotPDF = canvasRecortado.toDataURL("image/jpeg", 0.95);
         mapaSnapshotFecha = new Date();
 
         const estado = document.getElementById("estadoCapturaMapa");
         estado.className = "alert alert-success mx-3 mt-2 mb-2";
-        estado.innerHTML = "✅ Vista espacial capturada exitosamente: " + mapaSnapshotFecha.toLocaleString("es-CO");
+        estado.innerHTML = "✅ Captura de pantalla tomada con éxito: " + mapaSnapshotFecha.toLocaleString("es-CO");
 
         btn.innerHTML = "📸 Actualizar Captura";
         btn.disabled = false;
 
     } catch(err) {
-        console.error("[PMT] Error en la captura:", err);
+        console.error("[PMT] Error en la captura de pantalla:", err);
         
         const btn = document.getElementById("btnCapturaMapa");
         btn.innerHTML = "📸 Capturar Vista para Informe";
@@ -722,7 +724,12 @@ async function capturarVistaInforme() {
         
         const estado = document.getElementById("estadoCapturaMapa");
         estado.className = "alert alert-danger mx-3 mt-2 mb-2";
-        estado.innerHTML = "❌ Fallo en la captura. Verifica la consola.";
+        
+        if (err.name === 'NotAllowedError') {
+            estado.innerHTML = "❌ Captura cancelada por el usuario.";
+        } else {
+            estado.innerHTML = "❌ Fallo al capturar la pantalla. Asegúrate de dar permisos y seleccionar la pestaña actual.";
+        }
     }
 }
 
@@ -763,7 +770,7 @@ function openPdfPreview() {
     snapSpinner.classList.remove('hidden');
     snapSpinner.innerHTML = '<div class="spinner"></div><span>Cargando imagen capturada…</span>';
 
-    btnText.innerText = '⏳ Procesando mapa…';
+    btnText.innerText = '⏳ Procesando informe…';
 
     var mapUrl = mapaSnapshotPDF;
 
