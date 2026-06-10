@@ -392,24 +392,20 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
 <script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.html5.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
 /* =========================================================================
    VARIABLES GLOBALES
+   CORRECCIÓN: todo el código va dentro de $(document).ready() para evitar
+   "Cannot read properties of undefined (reading 'ext')" y 'isDataTable'
+   que ocurren cuando $.fn.dataTable aún no está disponible en mobile.
    ========================================================================= */
 var mapaCargado       = false;
 var reproduccionActiva  = false;
 var reproduccionPausada = false;
 var fechaReproduccion   = null;
 var reproductorInterval = null;
-
-/* =========================================================================
-   EVENTO CARGA IFRAME
-   ========================================================================= */
-$('#mapaIframe').on('load', function() {
-    mapaCargado = true;
-    if ($.fn.dataTable.isDataTable('#tablaDatos')) syncMap();
-});
 
 /* =========================================================================
    parseCSVRow / cleanDate — INTOCABLES (Regla de Oro)
@@ -455,196 +451,12 @@ function calcularSemaforo(fechaFinStr) {
 }
 
 /* =========================================================================
-   FILTRO MULTISELECCIÓN — DataTables search plugin
-   ========================================================================= */
-$.fn.dataTable.ext.search.push(function(settings, data) {
-    var pC  = ($('#filtroContratista').val()    || []).filter(v => v && v !== '');
-    var pCt = ($('#filtroContrato').val()        || []).filter(v => v && v !== '');
-    var pF  = ($('#filtroFrente').val()          || []).filter(v => v && v !== '');
-    var pI  = ($('#filtroInterferencia').val()   || []).filter(v => v && v !== '');
-
-    if (pC.length  && !pC.some(v  => data[2] && data[2].includes(v)))                   return false;
-    if (pCt.length && !pCt.some(v => data[1] && data[1].includes(v)))                   return false;
-    if (pF.length  && !pF.some(v  => data[4] && data[4].includes(v)))                   return false;
-    if (pI.length  && !pI.some(v  => data[6] === v || data[0] === v))                   return false;
-
-    let rowStart = cleanDate(data[8]), rowEnd = cleanDate(data[9]);
-
-    if (reproduccionActiva && fechaReproduccion) {
-        if (rowStart && rowEnd && fechaReproduccion >= rowStart && fechaReproduccion <= rowEnd) return true;
-        return false;
-    }
-
-    let fInicio = cleanDate($('#filtroInicio').val()), fFin = cleanDate($('#filtroFin').val());
-    if (fInicio && fFin) {
-        if (rowStart && rowEnd) { if (!(rowStart <= fFin && rowEnd >= fInicio)) return false; }
-        else return false;
-    }
-    return true;
-});
-
-/* =========================================================================
-   DOCUMENT READY
-   ========================================================================= */
-$(document).ready(function() {
-
-    /* -- Select2 init ---------------------------------------------------- */
-    var s2Cfg = {
-        theme: 'bootstrap-5',
-        placeholder: 'Todos',
-        allowClear: true,
-        closeOnSelect: false,
-        /* [AJUSTE 4] El panel desplegable se ancla al body para no ser
-           recortado por overflow:hidden de la columna, pero los tags
-           seleccionados siguen dentro de la caja del input */
-        dropdownParent: $('body'),
-        language: { noResults: () => 'Sin resultados' }
-    };
-    $('#filtroContratista, #filtroContrato, #filtroFrente, #filtroInterferencia').select2(s2Cfg);
-
-    /* -- Lectura CSV — INTOCABLE (Regla de Oro) -------------------------- */
-    fetch('reporte_dinamico.csv?nocache=' + new Date().getTime())
-    .then(r => { if (!r.ok) throw new Error('CORS'); return r.text(); })
-    .then(data => {
-        const filas = data.split('\n').slice(1);
-        let html = '';
-        filas.forEach(fila => {
-            if (fila.trim() === '') return;
-            const cols = parseCSVRow(fila);
-            if (cols.length >= 8) {
-                while (cols.length < 11) cols.push('N/A');
-                html += '<tr>' + cols.map(c => `<td>${c || 'N/A'}</td>`).join('') + '</tr>';
-            }
-        });
-        $('#cuerpoTabla').html(html);
-
-        /* -- DataTables -------------------------------------------------- */
-        var table = $('#tablaDatos').DataTable({
-            language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
-            pageLength: 5, lengthMenu: [5, 10, 25, 50, 'Todos'], order: [[0, 'desc']],
-            columnDefs: [{ targets: 3, visible: false }],
-            dom: "<'row'<'col-sm-12 col-md-4'l><'col-sm-12 col-md-8 text-end'B>>" +
-                 "<'row'<'col-sm-12'tr>>" +
-                 "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
-            buttons: [{ extend: 'excelHtml5', text: '📥 Exportar a Excel/CSV', className: 'btn btn-sm btn-success fw-bold' }]
-        });
-
-        /* -- Poblar dropdowns multiselect -------------------------------- */
-        function updateDropdowns() {
-            let selC  = $('#filtroContratista').val()  || [];
-            let selCt = $('#filtroContrato').val()     || [];
-            let selF  = $('#filtroFrente').val()       || [];
-            let selI  = $('#filtroInterferencia').val()|| [];
-            let sC = new Set(), sCt = new Set(), sF = new Set(), sI = new Set();
-
-            table.rows({ filter: 'applied' }).data().each(function(row) {
-                if (row[2]) row[2].split(' vs ').forEach(v => sC.add(v.trim()));
-                if (row[1]) row[1].split(' vs ').forEach(v => sCt.add(v.trim()));
-                if (row[4]) row[4].split(' / ').forEach(v => sF.add(v.trim()));
-                if (row[6] && row[6] !== 'N/A') sI.add(row[6].trim());
-            });
-
-            function pop(id, set, prev) {
-                let $s = $(id); $s.empty();
-                Array.from(set).sort().forEach(val => {
-                    let sel = prev.includes(val);
-                    $s.append(new Option(val, val, sel, sel));
-                });
-                $s.trigger('change.select2');
-            }
-            pop('#filtroContratista',   sC,  selC);
-            pop('#filtroContrato',      sCt, selCt);
-            pop('#filtroFrente',        sF,  selF);
-            pop('#filtroInterferencia', sI,  selI);
-        }
-
-        updateDropdowns();
-
-        $('#filtroContratista, #filtroContrato, #filtroFrente, #filtroInterferencia, #filtroInicio, #filtroFin')
-            .on('change', function() { table.draw(); updateDropdowns(); });
-
-        $('#btnLimpiar').click(function() {
-            $('#filtroContratista, #filtroContrato, #filtroFrente, #filtroInterferencia').val(null).trigger('change');
-            $('#filtroInicio, #filtroFin, #repInicio, #repFin').val('');
-            detenerReproductor(true);
-            table.draw(); updateDropdowns();
-        });
-
-        table.on('draw.dt', syncMap);
-
-        $('#btnPlay').click(function() {
-            if (reproduccionActiva)  { pausarReproductor(); }
-            else if (reproduccionPausada) { reanudarReproductor(table); }
-            else { iniciarReproductor(table); }
-        });
-
-        $('#velocidadReproduccion').on('change', function() {
-            if (reproduccionActiva) { clearInterval(reproductorInterval); iniciarCiclo(table); }
-        });
-
-        if (mapaCargado) syncMap();
-    })
-    .catch(() => document.getElementById('error-alerta').classList.remove('d-none'));
-});
-
-/* =========================================================================
-   REPRODUCTOR TEMPORAL — 3 estados: activo / pausado / detenido
-   ========================================================================= */
-function iniciarReproductor(table) {
-    var s = $('#repInicio').val(), e = $('#repFin').val();
-    if (!s || !e) { alert('⚠️ Selecciona Fecha de Inicio y Fin del recorrido.'); return; }
-    reproduccionActiva = true; reproduccionPausada = false;
-    fechaReproduccion = cleanDate(s);
-    $('#btnPlay').text('⏸ Pausar').removeClass('epm-btn-play').addClass('btn-danger');
-    iniciarCiclo(table);
-}
-
-function reanudarReproductor(table) {
-    reproduccionActiva = true; reproduccionPausada = false;
-    $('#btnPlay').text('⏸ Pausar').removeClass('epm-btn-play btn-warning').addClass('btn-danger');
-    iniciarCiclo(table);
-}
-
-function pausarReproductor() {
-    reproduccionActiva = false; reproduccionPausada = true;
-    clearInterval(reproductorInterval);
-    $('#btnPlay').text('▶ Reanudar').removeClass('btn-danger').addClass('btn-warning');
-    if (fechaReproduccion) {
-        let vd = fechaReproduccion.getFullYear() + '-' +
-                 String(fechaReproduccion.getMonth()+1).padStart(2,'0') + '-' +
-                 String(fechaReproduccion.getDate()).padStart(2,'0');
-        $('#fechaActualVisual').text('⏸ ' + vd);
-    }
-}
-
-function detenerReproductor(resetTotal) {
-    reproduccionActiva = false; reproduccionPausada = false;
-    clearInterval(reproductorInterval);
-    if (resetTotal) fechaReproduccion = null;
-    $('#btnPlay').text('▶ Iniciar Recorrido').removeClass('btn-danger btn-warning').addClass('epm-btn-play');
-    if (!$('#fechaActualVisual').text().includes('Fin')) $('#fechaActualVisual').text('---');
-}
-
-function iniciarCiclo(table) {
-    var fin  = cleanDate($('#repFin').val());
-    var paso = parseInt($('#velocidadPaso').val());
-    var ms   = parseInt($('#velocidadReproduccion').val());
-    reproductorInterval = setInterval(function() {
-        if (fechaReproduccion > fin) { detenerReproductor(false); $('#fechaActualVisual').text('✅ Fin'); return; }
-        let vd = fechaReproduccion.getFullYear() + '-' +
-                 String(fechaReproduccion.getMonth()+1).padStart(2,'0') + '-' +
-                 String(fechaReproduccion.getDate()).padStart(2,'0');
-        $('#fechaActualVisual').text(vd);
-        table.draw();
-        fechaReproduccion.setDate(fechaReproduccion.getDate() + paso);
-    }, ms);
-}
-
-/* =========================================================================
    syncMap — INTOCABLE (Regla de Oro)
+   Se declara como función global para que pueda ser llamada desde
+   el evento load del iframe (que puede dispararse antes del ready)
    ========================================================================= */
 function syncMap() {
-    if (!mapaCargado || !$.fn.dataTable.isDataTable('#tablaDatos')) return;
+    if (!mapaCargado || !window.$.fn.dataTable || !$.fn.dataTable.isDataTable('#tablaDatos')) return;
     var table = $('#tablaDatos').DataTable();
     var frentesActivos = [];
     table.rows({ filter: 'applied' }).data().each(function(row) { frentesActivos.push(row[4]); });
@@ -670,296 +482,388 @@ function syncMap() {
 }
 
 /* =========================================================================
-   CAPTURA DEL MAPA — Estrategia por capas compositadas dentro del iframe
+   CAPTURA DEL MAPA PARA EL PDF
    -------------------------------------------------------------------------
-   DIAGNÓSTICO RAÍZ (confirmado por las capturas de pantalla):
-   - leaflet-image captura los tiles de fondo ✓ PERO ignora el CSS
-     display:none que syncMap() aplica a los SVG paths → pinta TODOS
-     los trazados o ninguno dependiendo de la versión de la lib.
-   - El resultado visible: fondo cartográfico sin trazados activos.
+   ESTRATEGIA DEFINITIVA — Composición manual dentro del iframe:
+   Operamos DENTRO del contexto JS del iframe para:
+   1. Capturar los tiles con drawImage (respetando CORS cross-origin tiles)
+   2. Serializar el SVG overlay TAL COMO ESTÁ en el DOM (display:none ya
+      aplicado por syncMap), convirtiéndolo en imagen via Blob URL
+   3. Componer ambas capas en un <canvas> y devolver dataURL
 
-   CAUSA REAL: qgis2web renderiza los vectores en un <svg> que está
-   dentro de .leaflet-overlay-pane. Ese SVG tiene los paths con
-   display:none/'' controlados por syncMap(). leaflet-image no lee
-   el DOM SVG, sino que itera los L.Path layers y los redibuja con
-   sus propios métodos _updatePath, que no respetan el display:none
-   aplicado externamente al elemento SVG.
-
-   SOLUCIÓN DEFINITIVA — Composición manual por capas dentro del iframe:
-   Se ejecuta una función DENTRO del contexto JS del iframe que:
-   1. Crea un <canvas> temporal del tamaño del mapa
-   2. Dibuja encima los tiles de fondo usando drawImage sobre cada
-      <img> o <canvas> del .leaflet-tile-pane (ya renderizados)
-   3. Dibuja encima el SVG overlay (.leaflet-overlay-pane > svg)
-      serializado a Blob → URL → Image, respetando display:none
-      porque el SVG que se serializa ES el DOM actual con el estado
-      visible correcto
-   4. Devuelve el dataURL al documento padre
-
-   Esta estrategia NO depende de libs externas ni de reproduced
-   rendering: captura exactamente lo que el usuario ve en pantalla.
+   Esta estrategia evita html2canvas sobre el iframe (que no puede acceder
+   al DOM del iframe en algunos navegadores móviles) y es pixel-perfect
+   porque captura exactamente lo que el usuario ve en pantalla.
    ========================================================================= */
 async function capturarMapaParaPDF() {
     return new Promise((resolve) => {
-        const iframe    = document.getElementById('mapaIframe');
-        const iframeWin = iframe.contentWindow;
-        const iframeDoc = iframe.contentDocument || iframeWin.document;
+        try {
+            const iframe    = document.getElementById('mapaIframe');
+            const iframeWin = iframe.contentWindow;
+            const iframeDoc = iframe.contentDocument || iframeWin.document;
 
-        if (!iframeWin || !iframeWin.map) { resolve(null); return; }
+            if (!iframeWin || !iframeWin.map) { resolve(null); return; }
 
-        /* Inyectamos y ejecutamos la función de captura DENTRO del iframe */
-        function _captureInsideIframe() {
-            return new Promise((res) => {
-                try {
-                    const map        = iframeWin.map;
-                    const mapEl      = iframeDoc.getElementById('map');
-                    const mapRect    = mapEl.getBoundingClientRect();
-                    const W          = Math.round(mapRect.width)  || mapEl.offsetWidth;
-                    const H          = Math.round(mapRect.height) || mapEl.offsetHeight;
+            const mapEl  = iframeDoc.getElementById('map');
+            if (!mapEl)  { resolve(null); return; }
 
-                    const outCanvas  = iframeDoc.createElement('canvas');
-                    outCanvas.width  = W;
-                    outCanvas.height = H;
-                    const ctx        = outCanvas.getContext('2d');
+            const W = mapEl.offsetWidth  || 600;
+            const H = mapEl.offsetHeight || 400;
 
-                    /* --- PASO 1: fondo blanco base --- */
-                    ctx.fillStyle = '#e8e8e8';
-                    ctx.fillRect(0, 0, W, H);
+            const outCanvas  = iframeDoc.createElement('canvas');
+            outCanvas.width  = W;
+            outCanvas.height = H;
+            const ctx = outCanvas.getContext('2d');
 
-                    /* --- PASO 2: dibujar todos los tiles del pane de fondo ---
-                       Cada tile es un <img> posicionado absolutamente dentro
-                       de .leaflet-tile-pane. Leemos su posición relativa al
-                       contenedor del mapa y lo dibujamos en el canvas. */
-                    const tilePanes = iframeDoc.querySelectorAll(
-                        '.leaflet-tile-pane .leaflet-layer, ' +
-                        '.leaflet-tile-pane .leaflet-zoom-animated'
-                    );
+            /* PASO 1 — Fondo base */
+            ctx.fillStyle = '#e8eaed';
+            ctx.fillRect(0, 0, W, H);
 
-                    /* Función auxiliar: offset de un elemento relativo a mapEl */
-                    function offsetFromMap(el) {
-                        let x = 0, y = 0, cur = el;
-                        while (cur && cur !== mapEl) {
-                            x += cur.offsetLeft || 0;
-                            y += cur.offsetTop  || 0;
-                            /* Sumar translate3d si existe */
-                            const tr = cur.style.transform || '';
-                            const m  = tr.match(/translate3d\(\s*([-\d.]+)px,\s*([-\d.]+)px/);
-                            if (m) { x += parseFloat(m[1]); y += parseFloat(m[2]); }
-                            cur = cur.offsetParent;
-                        }
-                        return { x, y };
-                    }
-
-                    /* Recoger todos los <img> de tiles visibles */
-                    const tileImgs = iframeDoc.querySelectorAll(
-                        '.leaflet-tile-pane img.leaflet-tile:not(.leaflet-tile-loaded ~ .leaflet-tile)'
-                    );
-                    /* Fallback: todos los img dentro del tile pane */
-                    const allTileImgs = tileImgs.length > 0
-                        ? tileImgs
-                        : iframeDoc.querySelectorAll('.leaflet-tile-pane img');
-
-                    allTileImgs.forEach(img => {
-                        if (!img.complete || img.naturalWidth === 0) return;
-                        /* Calcular posición acumulada incluyendo transforms */
-                        let x = 0, y = 0;
-                        let el = img;
-                        /* Subir hasta el contenedor del mapa acumulando offsets + transforms */
-                        const chain = [];
-                        while (el && el !== mapEl) { chain.push(el); el = el.parentElement; }
-                        chain.reverse().forEach(node => {
-                            const tr = (node.style && node.style.transform) || '';
-                            const m  = tr.match(/translate3d\(\s*([-\d.]+)px,\s*([-\d.]+)px/);
-                            if (m) { x += parseFloat(m[1]); y += parseFloat(m[2]); }
-                            if (node !== img) {
-                                x += node.offsetLeft || 0;
-                                y += node.offsetTop  || 0;
-                            }
-                        });
-                        x += img.offsetLeft || 0;
-                        y += img.offsetTop  || 0;
-                        try {
-                            ctx.drawImage(img, Math.round(x), Math.round(y),
-                                          img.width || 256, img.height || 256);
-                        } catch(e) { /* CORS tile ignorado */ }
-                    });
-
-                    /* --- PASO 3: serializar el SVG overlay COMO ESTÁ en el DOM ---
-                       Este es el punto clave: el SVG contiene los paths con
-                       display:none/'' tal como los dejó syncMap(). Al serializar
-                       el DOM actual, obtenemos exactamente los trazados visibles. */
-                    const svgEl = iframeDoc.querySelector(
-                        '.leaflet-overlay-pane svg, .leaflet-pane.leaflet-overlay-pane svg'
-                    );
-
-                    if (!svgEl) {
-                        /* No hay SVG overlay → devolver lo que tenemos (solo tiles) */
-                        res(outCanvas.toDataURL('image/jpeg', 0.92));
-                        return;
-                    }
-
-                    /* Posición del SVG dentro del mapa */
-                    const svgRect = svgEl.getBoundingClientRect();
-                    const mapClientRect = mapEl.getBoundingClientRect();
-                    const svgOffX = svgRect.left - mapClientRect.left;
-                    const svgOffY = svgRect.top  - mapClientRect.top;
-
-                    /* Clonar el SVG para añadirle xmlns antes de serializar */
-                    const svgClone = svgEl.cloneNode(true);
-                    svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-                    /* Fijar viewBox al tamaño real del SVG para evitar recortes */
-                    svgClone.setAttribute('width',  svgRect.width  || svgEl.getAttribute('width')  || W);
-                    svgClone.setAttribute('height', svgRect.height || svgEl.getAttribute('height') || H);
-
-                    const svgString = new iframeWin.XMLSerializer().serializeToString(svgClone);
-                    const svgBlob   = new iframeWin.Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-                    const svgUrl    = iframeWin.URL.createObjectURL(svgBlob);
-
-                    const svgImg = new iframeWin.Image();
-                    svgImg.onload = function() {
-                        ctx.drawImage(svgImg, Math.round(svgOffX), Math.round(svgOffY));
-                        iframeWin.URL.revokeObjectURL(svgUrl);
-                        res(outCanvas.toDataURL('image/jpeg', 0.92));
-                    };
-                    svgImg.onerror = function() {
-                        /* Si falla la carga del SVG, devolver solo los tiles */
-                        iframeWin.URL.revokeObjectURL(svgUrl);
-                        res(outCanvas.toDataURL('image/jpeg', 0.88));
-                    };
-                    svgImg.src = svgUrl;
-
-                } catch(err) {
-                    console.warn('[PDF] Error en captura por capas:', err);
-                    res(null);
+            /* PASO 2 — Dibujar tiles del fondo
+               Cada <img> de tile tiene posición absoluta dentro de su layer.
+               Recorremos la jerarquía sumando offsetLeft/Top y translate3d. */
+            const allTileImgs = iframeDoc.querySelectorAll('.leaflet-tile-pane img');
+            allTileImgs.forEach(function(img) {
+                if (!img.complete || img.naturalWidth === 0) return;
+                var x = 0, y = 0, el = img;
+                while (el && el !== mapEl) {
+                    x += el.offsetLeft || 0;
+                    y += el.offsetTop  || 0;
+                    var tr = (el.style && el.style.transform) || '';
+                    var m  = tr.match(/translate3d\(\s*([-\d.]+)px,\s*([-\d.]+)px/);
+                    if (m) { x += parseFloat(m[1]); y += parseFloat(m[2]); }
+                    el = el.offsetParent || el.parentElement;
                 }
+                try { ctx.drawImage(img, Math.round(x), Math.round(y), img.width || 256, img.height || 256); }
+                catch(e) { /* tile CORS bloqueado, se ignora */ }
             });
-        }
 
-        _captureInsideIframe().then(resolve);
+            /* PASO 3 — Serializar SVG overlay COMO ESTÁ (display:none respetado)
+               El SVG del overlay-pane contiene los paths con el estado visual
+               exacto que dejó syncMap(). Al serializar el DOM actual obtenemos
+               solo los trazados que son visibles en pantalla. */
+            var svgEl = iframeDoc.querySelector('.leaflet-overlay-pane svg');
+            if (!svgEl) {
+                resolve(outCanvas.toDataURL('image/jpeg', 0.90));
+                return;
+            }
+
+            /* Posición del SVG relativa al contenedor del mapa */
+            var svgRect = svgEl.getBoundingClientRect();
+            var mapRect = mapEl.getBoundingClientRect();
+            var svgX = svgRect.left - mapRect.left;
+            var svgY = svgRect.top  - mapRect.top;
+
+            /* Clonar y preparar el SVG para serialización */
+            var svgClone = svgEl.cloneNode(true);
+            svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+            svgClone.setAttribute('width',  svgRect.width  || W);
+            svgClone.setAttribute('height', svgRect.height || H);
+
+            var svgStr  = new iframeWin.XMLSerializer().serializeToString(svgClone);
+            var svgBlob = new iframeWin.Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+            var svgUrl  = iframeWin.URL.createObjectURL(svgBlob);
+
+            var svgImg  = new iframeWin.Image();
+            svgImg.onload = function() {
+                ctx.drawImage(svgImg, Math.round(svgX), Math.round(svgY));
+                iframeWin.URL.revokeObjectURL(svgUrl);
+                resolve(outCanvas.toDataURL('image/jpeg', 0.92));
+            };
+            svgImg.onerror = function() {
+                iframeWin.URL.revokeObjectURL(svgUrl);
+                resolve(outCanvas.toDataURL('image/jpeg', 0.88));
+            };
+            svgImg.src = svgUrl;
+
+        } catch(err) {
+            console.warn('[PDF] capturarMapaParaPDF error:', err);
+            resolve(null);
+        }
     });
 }
 
 /* =========================================================================
+   REPRODUCTOR — funciones globales (llamadas desde dentro del ready)
+   ========================================================================= */
+function iniciarReproductor(table) {
+    var s = $('#repInicio').val(), e = $('#repFin').val();
+    if (!s || !e) { alert('⚠️ Selecciona Fecha de Inicio y Fin del recorrido.'); return; }
+    reproduccionActiva = true; reproduccionPausada = false;
+    fechaReproduccion = cleanDate(s);
+    $('#btnPlay').text('⏸ Pausar').removeClass('epm-btn-play').addClass('btn-danger');
+    iniciarCiclo(table);
+}
+function reanudarReproductor(table) {
+    reproduccionActiva = true; reproduccionPausada = false;
+    $('#btnPlay').text('⏸ Pausar').removeClass('epm-btn-play btn-warning').addClass('btn-danger');
+    iniciarCiclo(table);
+}
+function pausarReproductor() {
+    reproduccionActiva = false; reproduccionPausada = true;
+    clearInterval(reproductorInterval);
+    $('#btnPlay').text('▶ Reanudar').removeClass('btn-danger').addClass('btn-warning');
+    if (fechaReproduccion) {
+        var vd = fechaReproduccion.getFullYear() + '-' +
+                 String(fechaReproduccion.getMonth()+1).padStart(2,'0') + '-' +
+                 String(fechaReproduccion.getDate()).padStart(2,'0');
+        $('#fechaActualVisual').text('⏸ ' + vd);
+    }
+}
+function detenerReproductor(resetTotal) {
+    reproduccionActiva = false; reproduccionPausada = false;
+    clearInterval(reproductorInterval);
+    if (resetTotal) fechaReproduccion = null;
+    $('#btnPlay').text('▶ Iniciar Recorrido').removeClass('btn-danger btn-warning').addClass('epm-btn-play');
+    if (!$('#fechaActualVisual').text().includes('Fin')) $('#fechaActualVisual').text('---');
+}
+function iniciarCiclo(table) {
+    var fin  = cleanDate($('#repFin').val());
+    var paso = parseInt($('#velocidadPaso').val());
+    var ms   = parseInt($('#velocidadReproduccion').val());
+    reproductorInterval = setInterval(function() {
+        if (fechaReproduccion > fin) { detenerReproductor(false); $('#fechaActualVisual').text('✅ Fin'); return; }
+        var vd = fechaReproduccion.getFullYear() + '-' +
+                 String(fechaReproduccion.getMonth()+1).padStart(2,'0') + '-' +
+                 String(fechaReproduccion.getDate()).padStart(2,'0');
+        $('#fechaActualVisual').text(vd);
+        table.draw();
+        fechaReproduccion.setDate(fechaReproduccion.getDate() + paso);
+    }, ms);
+}
+
+/* =========================================================================
+   DOCUMENT READY — punto de entrada único
+   CORRECCIÓN: $.fn.dataTable.ext.search.push y el evento load del iframe
+   se registran aquí para garantizar que jQuery y DataTables ya cargaron.
+   ========================================================================= */
+$(document).ready(function() {
+
+    /* CORRECCIÓN: registrar el evento load del iframe dentro del ready */
+    $('#mapaIframe').on('load', function() {
+        mapaCargado = true;
+        if ($.fn.dataTable.isDataTable('#tablaDatos')) syncMap();
+    });
+
+    /* CORRECCIÓN: el plugin de filtro se registra aquí, no fuera del ready */
+    $.fn.dataTable.ext.search.push(function(settings, data) {
+        var pC  = ($('#filtroContratista').val()  || []).filter(function(v){ return v && v !== ''; });
+        var pCt = ($('#filtroContrato').val()      || []).filter(function(v){ return v && v !== ''; });
+        var pF  = ($('#filtroFrente').val()        || []).filter(function(v){ return v && v !== ''; });
+        var pI  = ($('#filtroInterferencia').val() || []).filter(function(v){ return v && v !== ''; });
+
+        if (pC.length  && !pC.some(function(v){  return data[2] && data[2].includes(v); })) return false;
+        if (pCt.length && !pCt.some(function(v){ return data[1] && data[1].includes(v); })) return false;
+        if (pF.length  && !pF.some(function(v){  return data[4] && data[4].includes(v); })) return false;
+        if (pI.length  && !pI.some(function(v){  return data[6] === v || data[0] === v; })) return false;
+
+        var rowStart = cleanDate(data[8]), rowEnd = cleanDate(data[9]);
+        if (reproduccionActiva && fechaReproduccion) {
+            if (rowStart && rowEnd && fechaReproduccion >= rowStart && fechaReproduccion <= rowEnd) return true;
+            return false;
+        }
+        var fInicio = cleanDate($('#filtroInicio').val()), fFin = cleanDate($('#filtroFin').val());
+        if (fInicio && fFin) {
+            if (rowStart && rowEnd) { if (!(rowStart <= fFin && rowEnd >= fInicio)) return false; }
+            else return false;
+        }
+        return true;
+    });
+
+    /* Select2 */
+    var s2Cfg = {
+        theme: 'bootstrap-5',
+        placeholder: 'Todos',
+        allowClear: true,
+        closeOnSelect: false,
+        dropdownParent: $('body'),
+        language: { noResults: function(){ return 'Sin resultados'; } }
+    };
+    $('#filtroContratista, #filtroContrato, #filtroFrente, #filtroInterferencia').select2(s2Cfg);
+
+    /* Lectura CSV — INTOCABLE (Regla de Oro) */
+    fetch('reporte_dinamico.csv?nocache=' + new Date().getTime())
+    .then(function(r) { if (!r.ok) throw new Error('CORS'); return r.text(); })
+    .then(function(data) {
+        var filas = data.split('\n').slice(1);
+        var html = '';
+        filas.forEach(function(fila) {
+            if (fila.trim() === '') return;
+            var cols = parseCSVRow(fila);
+            if (cols.length >= 8) {
+                while (cols.length < 11) cols.push('N/A');
+                html += '<tr>' + cols.map(function(c){ return '<td>' + (c || 'N/A') + '</td>'; }).join('') + '</tr>';
+            }
+        });
+        $('#cuerpoTabla').html(html);
+
+        var table = $('#tablaDatos').DataTable({
+            language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/es-ES.json' },
+            pageLength: 5, lengthMenu: [5, 10, 25, 50, 'Todos'], order: [[0, 'desc']],
+            columnDefs: [{ targets: 3, visible: false }],
+            dom: "<'row'<'col-sm-12 col-md-4'l><'col-sm-12 col-md-8 text-end'B>>" +
+                 "<'row'<'col-sm-12'tr>>" +
+                 "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+            buttons: [{ extend: 'excelHtml5', text: '📥 Exportar a Excel/CSV', className: 'btn btn-sm btn-success fw-bold' }]
+        });
+
+        function updateDropdowns() {
+            var selC  = $('#filtroContratista').val()  || [];
+            var selCt = $('#filtroContrato').val()     || [];
+            var selF  = $('#filtroFrente').val()       || [];
+            var selI  = $('#filtroInterferencia').val()|| [];
+            var sC = new Set(), sCt = new Set(), sF = new Set(), sI = new Set();
+            table.rows({ filter: 'applied' }).data().each(function(row) {
+                if (row[2]) row[2].split(' vs ').forEach(function(v){ sC.add(v.trim()); });
+                if (row[1]) row[1].split(' vs ').forEach(function(v){ sCt.add(v.trim()); });
+                if (row[4]) row[4].split(' / ').forEach(function(v){ sF.add(v.trim()); });
+                if (row[6] && row[6] !== 'N/A') sI.add(row[6].trim());
+            });
+            function pop(id, set, prev) {
+                var $s = $(id); $s.empty();
+                Array.from(set).sort().forEach(function(val){
+                    var isSel = prev.includes(val);
+                    $s.append(new Option(val, val, isSel, isSel));
+                });
+                $s.trigger('change.select2');
+            }
+            pop('#filtroContratista',   sC,  selC);
+            pop('#filtroContrato',      sCt, selCt);
+            pop('#filtroFrente',        sF,  selF);
+            pop('#filtroInterferencia', sI,  selI);
+        }
+
+        updateDropdowns();
+
+        $('#filtroContratista, #filtroContrato, #filtroFrente, #filtroInterferencia, #filtroInicio, #filtroFin')
+            .on('change', function() { table.draw(); updateDropdowns(); });
+
+        $('#btnLimpiar').click(function() {
+            $('#filtroContratista, #filtroContrato, #filtroFrente, #filtroInterferencia').val(null).trigger('change');
+            $('#filtroInicio, #filtroFin, #repInicio, #repFin').val('');
+            detenerReproductor(true);
+            table.draw(); updateDropdowns();
+        });
+
+        table.on('draw.dt', syncMap);
+
+        $('#btnPlay').click(function() {
+            if (reproduccionActiva)       pausarReproductor();
+            else if (reproduccionPausada) reanudarReproductor(table);
+            else                          iniciarReproductor(table);
+        });
+
+        $('#velocidadReproduccion').on('change', function() {
+            if (reproduccionActiva) { clearInterval(reproductorInterval); iniciarCiclo(table); }
+        });
+
+        if (mapaCargado) syncMap();
+    })
+    .catch(function() { document.getElementById('error-alerta').classList.remove('d-none'); });
+
+}); /* fin $(document).ready */
+
+/* =========================================================================
    GENERADOR INFORME PDF EJECUTIVO
+   openPdfPreview es global porque se llama con onclick="" en el HTML
    ========================================================================= */
 async function openPdfPreview() {
-    if (!$.fn.dataTable.isDataTable('#tablaDatos')) return;
-    const table = $('#tablaDatos').DataTable();
-    const filas = table.rows({ filter: 'applied' }).data();
+    if (!window.$ || !$.fn.dataTable || !$.fn.dataTable.isDataTable('#tablaDatos')) {
+        alert('La tabla aún está cargando. Espera unos segundos e intenta de nuevo.'); return;
+    }
+    var table = $('#tablaDatos').DataTable();
+    var filas = table.rows({ filter: 'applied' }).data();
     if (filas.length === 0) { alert('No hay datos en la tabla. Ajusta los filtros.'); return; }
 
-    const btnText   = document.getElementById('btn-pdf-text');
-    const origLabel = btnText.innerText;
+    var btnText   = document.getElementById('btn-pdf-text');
+    var origLabel = btnText.innerText;
     btnText.innerText = '⏳ Capturando mapa...';
 
-    /* [AJUSTE 1] Captura correcta del mapa */
-    const mapUrl = await capturarMapaParaPDF();
-    if (mapUrl) document.getElementById('pdf-map-snapshot').src = mapUrl;
+    var mapUrl = await capturarMapaParaPDF();
+    if (mapUrl) {
+        document.getElementById('pdf-map-snapshot').src = mapUrl;
+    }
 
     btnText.innerText = '⏳ Procesando datos...';
 
-    /* -- Construir contenido del PDF ------------------------------------ */
-    let totalReg = filas.length, criticos = 0;
-    let contratosSet = new Set();
-    let minDate = null, maxDate = null;
-    let pdfRows = '', progressHTML = '', criticosHTML = '';
-    const hoy = new Date();
+    var totalReg = filas.length, criticos = 0;
+    var contratosSet = new Set();
+    var minDate = null, maxDate = null;
+    var pdfRows = '', progressHTML = '', criticosHTML = '';
+    var hoy = new Date();
 
     filas.each(function(row) {
         var esCritico = row[6].toUpperCase().includes('CRÍTIC') || row[6].toUpperCase().includes('CRITIC');
         if (esCritico) criticos++;
-        if (row[1]) row[1].split(' vs ').forEach(c => contratosSet.add(c.trim()));
+        if (row[1]) row[1].split(' vs ').forEach(function(c){ contratosSet.add(c.trim()); });
 
-        let dIni = row[8], dFin = row[9];
-        let semaforo = calcularSemaforo(dFin);
+        var dIni = row[8], dFin = row[9];
+        var semaforo = calcularSemaforo(dFin);
 
-        /* -- Barra de progreso ----------------------------------------- */
         if (dIni && dIni !== 'N/A' && dFin && dFin !== 'N/A') {
-            let start = cleanDate(dIni), end = cleanDate(dFin);
+            var start = cleanDate(dIni), end = cleanDate(dFin);
             if (!minDate || start < minDate) minDate = start;
             if (!maxDate || end > maxDate)   maxDate = end;
 
-            let total = parseInt(row[10]) || 1, pct = 0;
+            var total = parseInt(row[10]) || 1, pct = 0;
             if (hoy >= end) pct = 100;
             else if (hoy > start) pct = Math.min(100, Math.round(Math.ceil(Math.abs(hoy - start) / 86400000) / total * 100));
 
-            let barColor = esCritico ? '#ff7800' : semaforo.color;
-            progressHTML += `
-                <div class="pdf-progress-wrap">
-                    <div class="pdf-progress-header">
-                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:78%;">${row[4]}</span>
-                        <span style="color:${barColor};">${semaforo.emoji} ${pct}%</span>
-                    </div>
-                    <div class="pdf-progress-bar">
-                        <div class="pdf-progress-fill" style="width:${pct}%;background:${barColor};"></div>
-                    </div>
-                    <div style="font-size:8px;color:${barColor};margin-top:1px;">${semaforo.label}</div>
-                </div>`;
+            var barColor = esCritico ? '#ff7800' : semaforo.color;
+            progressHTML += '<div class="pdf-progress-wrap">' +
+                '<div class="pdf-progress-header">' +
+                '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:78%;">' + row[4] + '</span>' +
+                '<span style="color:' + barColor + ';">' + semaforo.emoji + ' ' + pct + '%</span>' +
+                '</div>' +
+                '<div class="pdf-progress-bar"><div class="pdf-progress-fill" style="width:' + pct + '%;background:' + barColor + ';"></div></div>' +
+                '<div style="font-size:8px;color:' + barColor + ';margin-top:1px;">' + semaforo.label + '</div>' +
+                '</div>';
         }
 
-        /* [AJUSTE 2] Tarjeta de interferencia crítica ------------------- */
         if (esCritico) {
-            let contratos    = (row[1] || 'N/A').split(' vs ').map(s => s.trim()).join(' · ');
-            let contratistas = (row[2] || 'N/A').split(' vs ').map(s => s.trim()).join(' · ');
-            let frentes      = (row[4] || 'N/A').split(' / ').map(s => s.trim()).join(' · ');
-            let fechasDet    = (dIni && dIni !== 'N/A') ? `${dIni} → ${dFin}` : 'Sin fechas definidas';
-
-            criticosHTML += `
-                <div class="critico-card">
-                    <div class="critico-card-header">
-                        <span class="critico-card-badge">⚠ Interferencia Crítica</span>
-                        <span class="critico-card-title">${row[4] || 'Frente sin nombre'}</span>
-                    </div>
-                    <div class="critico-card-grid">
-                        <div>
-                            <div class="critico-field-label">Contratos involucrados</div>
-                            <div class="critico-field-value">${contratos}</div>
-                        </div>
-                        <div>
-                            <div class="critico-field-label">Contratistas involucrados</div>
-                            <div class="critico-field-value">${contratistas}</div>
-                        </div>
-                        <div style="grid-column:1/-1;margin-top:4px;">
-                            <div class="critico-field-label">Frentes que se interfieren</div>
-                            <div class="critico-field-value">${frentes}</div>
-                        </div>
-                    </div>
-                    <div class="critico-fechas-bar">
-                        📅 Período: <strong>${fechasDet}</strong>
-                        &nbsp;|&nbsp;
-                        ${semaforo.emoji} Vigencia: <strong>${semaforo.label}</strong>
-                    </div>
-                </div>`;
+            var contratos    = (row[1] || 'N/A').split(' vs ').map(function(s){ return s.trim(); }).join(' · ');
+            var contratistas = (row[2] || 'N/A').split(' vs ').map(function(s){ return s.trim(); }).join(' · ');
+            var frentes      = (row[4] || 'N/A').split(' / ').map(function(s){ return s.trim(); }).join(' · ');
+            var fechasDet    = (dIni && dIni !== 'N/A') ? dIni + ' → ' + dFin : 'Sin fechas definidas';
+            criticosHTML += '<div class="critico-card">' +
+                '<div class="critico-card-header">' +
+                '<span class="critico-card-badge">⚠ Interferencia Crítica</span>' +
+                '<span class="critico-card-title">' + (row[4] || 'Frente sin nombre') + '</span>' +
+                '</div>' +
+                '<div class="critico-card-grid">' +
+                '<div><div class="critico-field-label">Contratos involucrados</div><div class="critico-field-value">' + contratos + '</div></div>' +
+                '<div><div class="critico-field-label">Contratistas involucrados</div><div class="critico-field-value">' + contratistas + '</div></div>' +
+                '<div style="grid-column:1/-1;margin-top:4px;"><div class="critico-field-label">Frentes que se interfieren</div><div class="critico-field-value">' + frentes + '</div></div>' +
+                '</div>' +
+                '<div class="critico-fechas-bar">📅 Período: <strong>' + fechasDet + '</strong> &nbsp;|&nbsp; ' + semaforo.emoji + ' Vigencia: <strong>' + semaforo.label + '</strong></div>' +
+                '</div>';
         }
 
-        /* [AJUSTE 3] Tabla PDF: excluye Cercanía, añade Contratista + Horario */
         var cat = (row[0] || '').trim().toUpperCase();
         if (!cat.includes('CERCAN')) {
-            let colorF = esCritico ? '#ff7800' : semaforo.color;
-            let bgF    = esCritico ? 'background:#fff3e0;' : '';
-            pdfRows += `
-                <tr style="${bgF}">
-                    <td>${row[0]}</td>
-                    <td>${row[1]}</td>
-                    <td>${row[2]}</td>
-                    <td>${row[4]}</td>
-                    <td style="color:${esCritico?'#ff7800':'#333'};font-weight:${esCritico?'bold':'normal'};">${row[6]}</td>
-                    <td>${row[7] || 'N/A'}</td>
-                    <td>${dIni && dIni!=='N/A' ? dIni+' al '+dFin : 'N/A'}</td>
-                    <td style="color:${colorF};font-weight:bold;text-align:center;">${semaforo.emoji} ${semaforo.label}</td>
-                </tr>`;
+            var colorF = esCritico ? '#ff7800' : semaforo.color;
+            var bgF    = esCritico ? 'background:#fff3e0;' : '';
+            pdfRows += '<tr style="' + bgF + '">' +
+                '<td>' + row[0] + '</td>' +
+                '<td>' + row[1] + '</td>' +
+                '<td>' + row[2] + '</td>' +
+                '<td>' + row[4] + '</td>' +
+                '<td style="color:' + (esCritico?'#ff7800':'#333') + ';font-weight:' + (esCritico?'bold':'normal') + ';">' + row[6] + '</td>' +
+                '<td>' + (row[7] || 'N/A') + '</td>' +
+                '<td>' + (dIni && dIni!=='N/A' ? dIni+' al '+dFin : 'N/A') + '</td>' +
+                '<td style="color:' + colorF + ';font-weight:bold;text-align:center;">' + semaforo.emoji + ' ' + semaforo.label + '</td>' +
+                '</tr>';
         }
     });
 
     if (!progressHTML) progressHTML = '<i style="font-size:10px;">No hay trazados con fechas válidas.</i>';
 
-    /* [AJUSTE 2] Mostrar/ocultar sección críticos */
-    const secCrit = document.getElementById('pdf-criticos-section');
+    var secCrit = document.getElementById('pdf-criticos-section');
     secCrit.style.display = criticos > 0 ? 'block' : 'none';
     document.getElementById('pdf-criticos-container').innerHTML = criticosHTML;
 
-    let dateR = minDate && maxDate
-        ? `${minDate.toLocaleDateString('es-CO')} al ${maxDate.toLocaleDateString('es-CO')}`
+    var dateR = minDate && maxDate
+        ? minDate.toLocaleDateString('es-CO') + ' al ' + maxDate.toLocaleDateString('es-CO')
         : 'Sin fechas definidas';
 
     document.getElementById('pdf-date-gen').innerText  = 'Generado el: ' + new Date().toLocaleString('es-CO');
@@ -968,17 +872,11 @@ async function openPdfPreview() {
     document.getElementById('pdf-total-cont').innerText= contratosSet.size;
     document.getElementById('pdf-date-range').innerText= dateR;
 
-    let alertHTML = criticos > 0
-        ? `<br><br><span style="color:#ff7800;font-weight:bold;">⚠️ ALERTA DE GESTIÓN:</span>
-           Se detectaron <strong>${criticos} interferencias críticas</strong> por solapamiento de
-           fechas e infraestructura. Ver detalle en sección específica.`
+    var alertHTML = criticos > 0
+        ? '<br><br><span style="color:#ff7800;font-weight:bold;">⚠️ ALERTA DE GESTIÓN:</span> Se detectaron <strong>' + criticos + ' interferencias críticas</strong> por solapamiento de fechas e infraestructura. Ver detalle en sección específica.'
         : '';
-
     document.getElementById('pdf-executive-summary').innerHTML =
-        `El presente documento resume la gestión e interacción espacial de Planes de Manejo de
-         Tránsito (PMT) en el Visor Institucional. Se monitorean <strong>${contratosSet.size}
-         contratos</strong> y <strong>${totalReg} frentes/interferencias</strong> operativas.
-         ${alertHTML}`;
+        'El presente documento resume la gestión e interacción espacial de Planes de Manejo de Tránsito (PMT) en el Visor Institucional. Se monitorean <strong>' + contratosSet.size + ' contratos</strong> y <strong>' + totalReg + ' frentes/interferencias</strong> operativas.' + alertHTML;
 
     document.getElementById('pdf-progress-container').innerHTML = progressHTML;
     document.getElementById('pdf-table-body').innerHTML         = pdfRows;
@@ -990,7 +888,7 @@ async function openPdfPreview() {
 function closePdfPreview() { document.getElementById('pdfModal').style.display = 'none'; }
 
 function downloadPDF() {
-    const opt = {
+    var opt = {
         margin:     [10, 0, 10, 0],
         filename:   'Informe_PMT_EPM.pdf',
         image:      { type: 'jpeg', quality: 0.98 },
@@ -999,8 +897,8 @@ function downloadPDF() {
         pagebreak:  { mode: ['css', 'legacy'] }
     };
     html2pdf().set(opt).from(document.getElementById('pdf-content')).save()
-        .then(() => closePdfPreview());
+        .then(function(){ closePdfPreview(); });
 }
 </script>
 </body>
-</html>
+    </html>
