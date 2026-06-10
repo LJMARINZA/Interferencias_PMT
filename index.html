@@ -648,7 +648,7 @@ $(document).ready(function() {
 });
 
 /* =========================================================================
-   [SOLUCIÓN DEFINITIVA] CAPTURA DEL IFRAME CON HTML2CANVAS
+   [NUEVA SOLUCIÓN] INYECCIÓN Y EJECUCIÓN DENTRO DEL IFRAME
    ========================================================================= */
 async function capturarVistaInforme() {
     try {
@@ -660,60 +660,88 @@ async function capturarVistaInforme() {
         const iframeWin = iframe.contentWindow;
         const iframeDoc = iframe.contentDocument || iframeWin.document;
         
-        // Seleccionar el contenedor principal de Leaflet
+        // Buscamos el contenedor del mapa dentro del iframe
         const mapContainer = iframeDoc.getElementById('map') || iframeDoc.querySelector('.leaflet-container');
-        
-        // CORRECCIÓN 1: Obtener las dimensiones exactas en píxeles
-        // Previene que html2canvas colapse el contenedor a 0px al clonarlo.
+
+        if (!mapContainer) {
+            throw new Error("Contenedor del mapa no encontrado en el iframe.");
+        }
+
+        // 1. INYECCIÓN DINÁMICA: Si el iframe no tiene html2canvas, se lo inyectamos
+        if (!iframeWin.html2canvas) {
+            console.log("[PMT] Inyectando html2canvas en el contexto del iframe...");
+            let script = iframeDoc.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+            iframeDoc.head.appendChild(script);
+            
+            // Esperamos a que la librería cargue dentro del iframe
+            await new Promise((resolve, reject) => {
+                script.onload = resolve;
+                script.onerror = () => reject("Fallo al inyectar html2canvas en el iframe.");
+            });
+        }
+
+        // Pequeña pausa para estabilizar la inyección y el renderizado actual
+        await new Promise(r => setTimeout(r, 500));
+
         const rect = mapContainer.getBoundingClientRect();
 
-        const canvas = await html2canvas(mapContainer, {
+        // 2. EJECUCIÓN IN-SITU: Ejecutamos html2canvas usando el 'window' del iframe
+        const canvas = await iframeWin.html2canvas(mapContainer, {
             useCORS: true,
             allowTaint: false,
             backgroundColor: "#c8dce8",
             width: rect.width,
             height: rect.height,
-            scale: 2,
+            scale: 1.5, // Reducido a 1.5x para evitar sobrecargas de memoria en el PDF final
             onclone: function(clonedDoc) {
-                // CORRECCIÓN 2: Forzar las dimensiones exactas en el documento clonado
+                // Forzar dimensiones en el clon
                 const clonedMap = clonedDoc.getElementById('map') || clonedDoc.querySelector('.leaflet-container');
                 if (clonedMap) {
                     clonedMap.style.width = rect.width + 'px';
                     clonedMap.style.height = rect.height + 'px';
                 }
 
-                // CORRECCIÓN 3: Revertir el Transform 3D de Leaflet
-                // html2canvas no procesa bien translate3d(), desplazando los elementos fuera de la vista.
-                const panes = clonedDoc.querySelectorAll('.leaflet-pane');
-                panes.forEach(pane => {
-                    const transform = pane.style.transform;
+                // Reparación de transformaciones 3D de Leaflet (Bug conocido)
+                const elements = clonedDoc.querySelectorAll('*');
+                for(let i = 0; i < elements.length; i++) {
+                    let transform = elements[i].style.transform;
                     if (transform && transform.includes('translate3d')) {
-                        // Cambiamos 'translate3d(X, Y, 0px)' por 'translate(X, Y)'
-                        pane.style.transform = transform.replace('translate3d', 'translate').replace(', 0px)', ')');
+                        elements[i].style.transform = transform.replace(/translate3d\(([^,]+),\s*([^,]+),\s*[^)]+\)/g, 'translate($1, $2)');
                     }
-                });
+                }
             }
         });
 
-        mapaSnapshotPDF = canvas.toDataURL("image/jpeg", 0.95);
+        // 3. EXTRACCIÓN Y VALIDACIÓN
+        const testUrl = canvas.toDataURL("image/jpeg", 0.95);
+        if (testUrl === "data:,") {
+            throw new Error("El canvas generado está vacío. Las teselas del mapa pueden estar bloqueando por CORS estricto.");
+        }
+
+        mapaSnapshotPDF = testUrl;
         mapaSnapshotFecha = new Date();
 
+        // Actualización de estado en el dashboard principal
         const estado = document.getElementById("estadoCapturaMapa");
         estado.className = "alert alert-success mx-3 mt-2 mb-2";
-        estado.innerHTML = "✅ Vista espacial capturada: " + mapaSnapshotFecha.toLocaleString("es-CO");
+        estado.innerHTML = "✅ Vista espacial capturada exitosamente: " + mapaSnapshotFecha.toLocaleString("es-CO");
 
         btn.innerHTML = "📸 Actualizar Captura";
         btn.disabled = false;
 
     } catch(err) {
-        console.error("Error crítico en la captura del mapa:", err);
+        console.error("[PMT] Error crítico en la captura del mapa:", err);
+        
         const btn = document.getElementById("btnCapturaMapa");
         btn.innerHTML = "📸 Capturar Vista para Informe";
         btn.disabled = false;
-        alert("No se pudo capturar el mapa. Revisa la consola del navegador.");
+        
+        const estado = document.getElementById("estadoCapturaMapa");
+        estado.className = "alert alert-danger mx-3 mt-2 mb-2";
+        estado.innerHTML = "❌ Fallo al capturar la vista: " + err.message;
     }
 }
-
 /* =========================================================================
    SINTAXIS RESTANTE
    ========================================================================= */
