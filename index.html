@@ -434,10 +434,6 @@ function syncMap() {
 /* =========================================================================
    Utilidades para manejo asíncrono
    ========================================================================= */
-function esperar(ms) {
-    return new Promise(function(resolve) { setTimeout(resolve, ms); });
-}
-
 function esperarCargaImagen(imgEl, timeoutMs) {
     return new Promise(function(resolve) {
         var listo = false;
@@ -648,81 +644,68 @@ $(document).ready(function() {
 });
 
 /* =========================================================================
-   [NUEVA SOLUCIÓN] INYECCIÓN Y EJECUCIÓN DENTRO DEL IFRAME
+   [SOLUCIÓN DEFINITIVA] CAPTURA CON APLANAMIENTO 2D EN EL DOM VIVO
    ========================================================================= */
 async function capturarVistaInforme() {
     try {
         const btn = document.getElementById("btnCapturaMapa");
         btn.disabled = true;
-        btn.innerHTML = "⏳ Capturando...";
+        btn.innerHTML = "⏳ Preparando mapa...";
 
         const iframe = document.getElementById("mapaIframe");
-        const iframeWin = iframe.contentWindow;
-        const iframeDoc = iframe.contentDocument || iframeWin.document;
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
         
-        // Buscamos el contenedor del mapa dentro del iframe
-        const mapContainer = iframeDoc.getElementById('map') || iframeDoc.querySelector('.leaflet-container');
+        // Encontrar el contenedor raíz del mapa (QGIS2Web usa #map por defecto)
+        const mapDiv = iframeDoc.getElementById('map') || iframeDoc.querySelector('.leaflet-container') || iframeDoc.body;
 
-        if (!mapContainer) {
-            throw new Error("Contenedor del mapa no encontrado en el iframe.");
-        }
+        // 1. APLANAMIENTO 3D A 2D EN EL DOM EN VIVO
+        // html2canvas tiene un bug documentado con translate3d de Leaflet.
+        // Modificamos el DOM real temporalmente para asegurar la captura exacta.
+        const elementosModificados = [];
+        const todosLosNodos = mapDiv.querySelectorAll('*');
+        
+        todosLosNodos.forEach(el => {
+            const transform = el.style.transform;
+            if (transform && transform.includes('translate3d')) {
+                // Guardamos el estilo original
+                elementosModificados.push({ elemento: el, original: transform });
+                // Reemplazamos translate3d(x, y, z) por translate(x, y)
+                el.style.transform = transform.replace(/translate3d\(([^,]+),\s*([^,]+),\s*[^)]+\)/gi, 'translate($1, $2)');
+            }
+        });
 
-        // 1. INYECCIÓN DINÁMICA: Si el iframe no tiene html2canvas, se lo inyectamos
-        if (!iframeWin.html2canvas) {
-            console.log("[PMT] Inyectando html2canvas en el contexto del iframe...");
-            let script = iframeDoc.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-            iframeDoc.head.appendChild(script);
-            
-            // Esperamos a que la librería cargue dentro del iframe
-            await new Promise((resolve, reject) => {
-                script.onload = resolve;
-                script.onerror = () => reject("Fallo al inyectar html2canvas en el iframe.");
-            });
-        }
+        // Forzamos un reflow del navegador para aplicar los estilos 2D
+        await new Promise(r => setTimeout(r, 300));
+        
+        btn.innerHTML = "📸 Capturando...";
 
-        // Pequeña pausa para estabilizar la inyección y el renderizado actual
-        await new Promise(r => setTimeout(r, 500));
-
-        const rect = mapContainer.getBoundingClientRect();
-
-        // 2. EJECUCIÓN IN-SITU: Ejecutamos html2canvas usando el 'window' del iframe
-        const canvas = await iframeWin.html2canvas(mapContainer, {
+        // 2. CAPTURA DESDE EL CONTEXTO PADRE
+        const rect = mapDiv.getBoundingClientRect();
+        
+        const canvas = await window.html2canvas(mapDiv, {
             useCORS: true,
             allowTaint: false,
             backgroundColor: "#c8dce8",
             width: rect.width,
             height: rect.height,
-            scale: 1.5, // Reducido a 1.5x para evitar sobrecargas de memoria en el PDF final
-            onclone: function(clonedDoc) {
-                // Forzar dimensiones en el clon
-                const clonedMap = clonedDoc.getElementById('map') || clonedDoc.querySelector('.leaflet-container');
-                if (clonedMap) {
-                    clonedMap.style.width = rect.width + 'px';
-                    clonedMap.style.height = rect.height + 'px';
-                }
-
-                // Reparación de transformaciones 3D de Leaflet (Bug conocido)
-                const elements = clonedDoc.querySelectorAll('*');
-                for(let i = 0; i < elements.length; i++) {
-                    let transform = elements[i].style.transform;
-                    if (transform && transform.includes('translate3d')) {
-                        elements[i].style.transform = transform.replace(/translate3d\(([^,]+),\s*([^,]+),\s*[^)]+\)/g, 'translate($1, $2)');
-                    }
-                }
-            }
+            scale: 1.5, // Balance ideal entre calidad y peso
+            logging: false
         });
 
-        // 3. EXTRACCIÓN Y VALIDACIÓN
-        const testUrl = canvas.toDataURL("image/jpeg", 0.95);
-        if (testUrl === "data:,") {
-            throw new Error("El canvas generado está vacío. Las teselas del mapa pueden estar bloqueando por CORS estricto.");
+        // 3. RESTAURACIÓN DEL DOM A 3D
+        elementosModificados.forEach(item => {
+            item.elemento.style.transform = item.original;
+        });
+
+        // 4. VALIDACIÓN Y GUARDADO
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
+        if (!dataUrl || dataUrl === "data:,") {
+            throw new Error("El renderizado devolvió un lienzo vacío.");
         }
 
-        mapaSnapshotPDF = testUrl;
+        mapaSnapshotPDF = dataUrl;
         mapaSnapshotFecha = new Date();
 
-        // Actualización de estado en el dashboard principal
         const estado = document.getElementById("estadoCapturaMapa");
         estado.className = "alert alert-success mx-3 mt-2 mb-2";
         estado.innerHTML = "✅ Vista espacial capturada exitosamente: " + mapaSnapshotFecha.toLocaleString("es-CO");
@@ -731,7 +714,7 @@ async function capturarVistaInforme() {
         btn.disabled = false;
 
     } catch(err) {
-        console.error("[PMT] Error crítico en la captura del mapa:", err);
+        console.error("[PMT] Error en la captura:", err);
         
         const btn = document.getElementById("btnCapturaMapa");
         btn.innerHTML = "📸 Capturar Vista para Informe";
@@ -739,11 +722,12 @@ async function capturarVistaInforme() {
         
         const estado = document.getElementById("estadoCapturaMapa");
         estado.className = "alert alert-danger mx-3 mt-2 mb-2";
-        estado.innerHTML = "❌ Fallo al capturar la vista: " + err.message;
+        estado.innerHTML = "❌ Fallo en la captura. Verifica la consola.";
     }
 }
+
 /* =========================================================================
-   SINTAXIS RESTANTE
+   GENERADOR DE PDF Y MODAL
    ========================================================================= */
 function openPdfPreview() {
     if (!window.$ || !$.fn.dataTable || !$.fn.dataTable.isDataTable('#tablaDatos')) {
@@ -777,7 +761,7 @@ function openPdfPreview() {
     snapImg.style.display = 'none';
     snapImg.src = '';
     snapSpinner.classList.remove('hidden');
-    snapSpinner.innerHTML = '<div class="spinner"></div><span>Capturando vista del mapa…</span>';
+    snapSpinner.innerHTML = '<div class="spinner"></div><span>Cargando imagen capturada…</span>';
 
     btnText.innerText = '⏳ Procesando mapa…';
 
@@ -789,7 +773,7 @@ function openPdfPreview() {
             btnConfirm.disabled = !cargada;
         });
     } else {
-        snapSpinner.innerHTML = '<span style="color:#666; font-size:11px; padding:10px; text-align:center;">⚠️ Fallo en la captura<br></span>';
+        snapSpinner.innerHTML = '<span style="color:#666; font-size:11px; padding:10px; text-align:center;">⚠️ Fallo al cargar la imagen<br></span>';
         btnConfirm.disabled = true;
     }
 
