@@ -34,24 +34,11 @@
             overflow: hidden;
         }
         .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered {
-            padding: 2px 4px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 2px;
-            overflow: hidden;
-            max-width: 100%;
+            padding: 2px 4px; display: flex; flex-wrap: wrap; gap: 2px; overflow: hidden; max-width: 100%;
         }
         .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
-            background-color: #009300;
-            border-color: #007a00;
-            color: white;
-            font-size: 0.7rem;
-            padding: 0 6px;
-            max-width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            flex-shrink: 1;
+            background-color: #009300; border-color: #007a00; color: white; font-size: 0.7rem;
+            padding: 0 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1;
         }
         .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove { color: rgba(255,255,255,0.8); }
         .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove:hover { color: white; }
@@ -61,15 +48,9 @@
 
         /* =================== DISEÑO MODAL PDF =================== */
         .pdf-modal-backdrop {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
-            z-index: 2000;
-            overflow-y: auto;
-            display: none;
-            justify-content: center;
-            padding: 30px 0;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 2000; overflow-y: auto;
+            display: none; justify-content: center; padding: 30px 0;
         }
         .pdf-controls { position: fixed; top: 20px; right: 30px; z-index: 2010; }
         .a4-preview { width: 210mm; min-height: 297mm; background: white; box-shadow: 0 10px 25px rgba(0,0,0,0.3); padding-bottom: 20mm; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; }
@@ -97,69 +78,24 @@
         .pdf-progress-fill { height: 100%; border-radius: 3px; }
 
         .critico-card {
-            border: 2px solid #ff7800;
-            border-left: 6px solid #ff7800;
-            border-radius: 6px;
-            background: linear-gradient(135deg, #fff8f3 0%, #fff0e0 100%);
-            padding: 12px 15px;
-            margin-bottom: 10px;
-            page-break-inside: avoid;
+            border: 2px solid #ff7800; border-left: 6px solid #ff7800; border-radius: 6px;
+            background: linear-gradient(135deg, #fff8f3 0%, #fff0e0 100%); padding: 12px 15px;
+            margin-bottom: 10px; page-break-inside: avoid;
         }
-        .critico-card-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 8px;
-            border-bottom: 1px dashed #ffaa60;
-            padding-bottom: 6px;
-        }
-        .critico-card-badge {
-            background: #ff7800;
-            color: white;
-            font-size: 9px;
-            font-weight: bold;
-            padding: 2px 9px;
-            border-radius: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-            white-space: nowrap;
-        }
+        .critico-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; border-bottom: 1px dashed #ffaa60; padding-bottom: 6px; }
+        .critico-card-badge { background: #ff7800; color: white; font-size: 9px; font-weight: bold; padding: 2px 9px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
         .critico-card-title { font-size: 11px; font-weight: bold; color: #b84d00; }
         .critico-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 15px; }
-        .critico-field-label {
-            font-size: 8px;
-            color: #cc5a00;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 0.2px;
-            margin-bottom: 2px;
-        }
+        .critico-field-label { font-size: 8px; color: #cc5a00; font-weight: bold; text-transform: uppercase; letter-spacing: 0.2px; margin-bottom: 2px; }
         .critico-field-value { font-size: 9px; color: #3d2000; font-weight: 500; line-height: 1.4; }
-        .critico-fechas-bar {
-            margin-top: 8px;
-            background: #ffe5cc;
-            border: 1px solid #ffb87a;
-            border-radius: 4px;
-            padding: 5px 10px;
-            font-size: 9px;
-            color: #8c3600;
-            font-weight: bold;
-        }
+        .critico-fechas-bar { margin-top: 8px; background: #ffe5cc; border: 1px solid #ffb87a; border-radius: 4px; padding: 5px 10px; font-size: 9px; color: #8c3600; font-weight: bold; }
 
         .semaforo-verde   { color: #009300; font-weight: bold; }
         .semaforo-amarillo { color: #e6a800; font-weight: bold; }
         .semaforo-rojo    { color: #dc3545; font-weight: bold; }
 
-        .pdf-map-loading {
-            width: 100%; height: 220px; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; background: #c8dce8;
-            color: #546e7a; font-size: 12px; gap: 8px;
-        }
-        .pdf-map-loading .spinner {
-            width: 28px; height: 28px; border: 3px solid rgba(0,147,0,0.2);
-            border-top-color: #009300; border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
+        .pdf-map-loading { width: 100%; height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #c8dce8; color: #546e7a; font-size: 12px; gap: 8px; }
+        .pdf-map-loading .spinner { width: 28px; height: 28px; border: 3px solid rgba(0,147,0,0.2); border-top-color: #009300; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         #pdf-map-snapshot { display: none; }
         #pdf-map-snapshot.loaded { display: block; }
@@ -712,9 +648,7 @@ $(document).ready(function() {
 });
 
 /* =========================================================================
-   [CORRECCIÓN JS 1] CAPTURA EXCLUSIVA DIRECTA DEL IFRAME
-   Se corrigió la selección del contenedor Leaflet y se unificó la lógica
-   para no depender de recálculos de pantalla.
+   [SOLUCIÓN DEFINITIVA] CAPTURA DEL IFRAME CON HTML2CANVAS
    ========================================================================= */
 async function capturarVistaInforme() {
     try {
@@ -723,14 +657,42 @@ async function capturarVistaInforme() {
         btn.innerHTML = "⏳ Capturando...";
 
         const iframe = document.getElementById("mapaIframe");
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-        const mapContainer = iframeDoc.querySelector('.leaflet-container');
+        const iframeWin = iframe.contentWindow;
+        const iframeDoc = iframe.contentDocument || iframeWin.document;
+        
+        // Seleccionar el contenedor principal de Leaflet
+        const mapContainer = iframeDoc.getElementById('map') || iframeDoc.querySelector('.leaflet-container');
+        
+        // CORRECCIÓN 1: Obtener las dimensiones exactas en píxeles
+        // Previene que html2canvas colapse el contenedor a 0px al clonarlo.
+        const rect = mapContainer.getBoundingClientRect();
 
         const canvas = await html2canvas(mapContainer, {
             useCORS: true,
             allowTaint: false,
             backgroundColor: "#c8dce8",
-            scale: 2
+            width: rect.width,
+            height: rect.height,
+            scale: 2,
+            onclone: function(clonedDoc) {
+                // CORRECCIÓN 2: Forzar las dimensiones exactas en el documento clonado
+                const clonedMap = clonedDoc.getElementById('map') || clonedDoc.querySelector('.leaflet-container');
+                if (clonedMap) {
+                    clonedMap.style.width = rect.width + 'px';
+                    clonedMap.style.height = rect.height + 'px';
+                }
+
+                // CORRECCIÓN 3: Revertir el Transform 3D de Leaflet
+                // html2canvas no procesa bien translate3d(), desplazando los elementos fuera de la vista.
+                const panes = clonedDoc.querySelectorAll('.leaflet-pane');
+                panes.forEach(pane => {
+                    const transform = pane.style.transform;
+                    if (transform && transform.includes('translate3d')) {
+                        // Cambiamos 'translate3d(X, Y, 0px)' por 'translate(X, Y)'
+                        pane.style.transform = transform.replace('translate3d', 'translate').replace(', 0px)', ')');
+                    }
+                });
+            }
         });
 
         mapaSnapshotPDF = canvas.toDataURL("image/jpeg", 0.95);
@@ -744,18 +706,16 @@ async function capturarVistaInforme() {
         btn.disabled = false;
 
     } catch(err) {
-        console.error("Error en captura:", err);
+        console.error("Error crítico en la captura del mapa:", err);
         const btn = document.getElementById("btnCapturaMapa");
         btn.innerHTML = "📸 Capturar Vista para Informe";
         btn.disabled = false;
-        alert("No se pudo capturar el mapa. Revisa la consola.");
+        alert("No se pudo capturar el mapa. Revisa la consola del navegador.");
     }
 }
 
 /* =========================================================================
-   [CORRECCIÓN JS 2] SINTAXIS REPARADA
-   Había una llave mal cerrada y falta de la palabra 'function' que rompía 
-   TODO el archivo JS.
+   SINTAXIS RESTANTE
    ========================================================================= */
 function openPdfPreview() {
     if (!window.$ || !$.fn.dataTable || !$.fn.dataTable.isDataTable('#tablaDatos')) {
@@ -768,7 +728,6 @@ function openPdfPreview() {
         return;
     }
 
-    // Actualiza la fecha en el HTML del informe
     document.getElementById("pdf-map-capture-date").innerHTML = "Vista espacial capturada: " + mapaSnapshotFecha.toLocaleString("es-CO");
 
     var table = $('#tablaDatos').DataTable();
@@ -798,7 +757,6 @@ function openPdfPreview() {
 
     if (mapUrl) {
         snapImg.src = mapUrl;
-        // Espera a que cargue en el DOM del modal
         esperarCargaImagen(snapImg, 7000).then(function(cargada) {
             btnConfirm.disabled = !cargada;
         });
