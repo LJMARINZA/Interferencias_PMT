@@ -189,9 +189,36 @@
         <img src="logo_epm.jpg" onerror="this.src='logo_epm.png'" alt="Logo EPM" style="height: 45px;">
         <span class="epm-title">Visor Inteligente de Gestión PMT</span>
     </div>
-    <button onclick="openPdfPreview()" class="btn epm-btn shadow-sm">
+    <div class="d-flex gap-2">
+
+    <button
+        id="btnCapturaMapa"
+        onclick="capturarVistaInforme()"
+        class="btn btn-success shadow-sm fw-bold">
+
+        📸 Capturar Vista para Informe
+
+    </button>
+
+    <button
+        onclick="openPdfPreview()"
+        class="btn epm-btn shadow-sm">
+
+        📄 Generar Informe PDF Ejecutivo
+
+    </button>
+
+</div>
         <span id="btn-pdf-text">📄 Generar Informe PDF Ejecutivo</span>
     </button>
+</div>
+
+<!-- Estado de la captura espacial -->
+<div id="estadoCapturaMapa"
+     class="alert alert-warning mx-3 mt-2 mb-2">
+
+    ⚠️ No existe una captura espacial almacenada.
+
 </div>
 
 <div class="container-fluid px-3">
@@ -332,6 +359,14 @@
                         <span>Capturando vista del mapa…</span>
                     </div>
                     <img id="pdf-map-snapshot"
+<div id="pdf-map-capture-date"
+     style="
+        font-size:9px;
+        color:#6c757d;
+        padding:4px 8px;
+        border-top:1px solid #e9ecef;
+     ">
+</div>
                          class="pdf-map-image"
                          src=""
                          alt="Vista geoespacial del mapa"
@@ -421,17 +456,35 @@ var mapaCargado         = false;
 var reproduccionActiva  = false;
 var reproduccionPausada = false;
 var fechaReproduccion   = null;
-var reproductorInterval  = null;
+var reproductorInterval = null;
 
-/* =========================================================================
-   Estado cacheado de la captura geoespacial para el PDF
-   ========================================================================= */
 var mapaSnapshotPDF = null;
-var mapaSnapshotGeneradoEn = null;
+var mapaSnapshotFecha = null;
 
-/* =========================================================================
-   parseCSVRow / cleanDate — INTOCABLES (Regla de Oro)
-   ========================================================================= */
+/* =====================================================
+   INVALIDAR CAPTURA
+   ===================================================== */
+function invalidarCapturaMapa() {
+
+    mapaSnapshotPDF = null;
+    mapaSnapshotFecha = null;
+
+    const estado =
+        document.getElementById("estadoCapturaMapa");
+
+    if (estado) {
+
+        estado.className =
+            "alert alert-warning mx-3 mt-2 mb-2";
+
+        estado.innerHTML =
+            "⚠️ Los filtros cambiaron. Debes capturar nuevamente la vista espacial.";
+    }
+}
+
+/* =====================================================
+   parseCSVRow
+   ===================================================== */
 function parseCSVRow(str) {
     let arr = [], quote = false, start = 0;
     for (let i = 0; i < str.length; i++) {
@@ -789,15 +842,22 @@ $(document).ready(function() {
             updateDropdowns();
 
             $('#filtroContratista, #filtroContrato, #filtroFrente, #filtroInterferencia, #filtroInicio, #filtroFin')
-                .on('change', function() { table.draw(); updateDropdowns(); });
+                .on('change', function() {
+
+    invalidarCapturaMapa();
+
+    table.draw();
+
+    updateDropdowns();
+
+});
 
             $('#btnLimpiar').click(function() {
                 $('#filtroContratista, #filtroContrato, #filtroFrente, #filtroInterferencia').val(null).trigger('change');
                 $('#filtroInicio, #filtroFin, #repInicio, #repFin').val('');
                 detenerReproductor(true);
                 table.draw(); updateDropdowns();
-                mapaSnapshotPDF = null;
-                mapaSnapshotGeneradoEn = null;
+                invalidarCapturaMapa();
             });
 
             table.on('draw.dt', syncMap);
@@ -827,10 +887,78 @@ $(document).ready(function() {
    2) Inserta esa captura en el modal.
    3) Genera el PDF con la imagen ya fija.
    ========================================================================= */
-async function openPdfPreview() {
+async function capturarVistaInforme() {
+
+    try {
+
+        const btn =
+            document.getElementById("btnCapturaMapa");
+
+        btn.disabled = true;
+        btn.innerHTML = "⏳ Capturando...";
+
+        const iframe =
+            document.getElementById("mapaIframe");
+
+        const iframeDoc =
+            iframe.contentDocument ||
+            iframe.contentWindow.document;
+
+        const mapContainer =
+            iframeDoc.querySelector('.leaflet-container');
+
+        const canvas = await html2canvas(
+            mapContainer,
+            {
+                useCORS: true,
+                allowTaint: false,
+                backgroundColor: "#c8dce8",
+                scale: 2
+            }
+        );
+
+        mapaSnapshotPDF =
+            canvas.toDataURL(
+                "image/jpeg",
+                0.95
+            );
+
+        mapaSnapshotFecha =
+            new Date();
+
+        document.getElementById(
+            "estadoCapturaMapa"
+        ).className =
+            "alert alert-success mx-3 mt-2 mb-2";
+
+        document.getElementById(
+            "estadoCapturaMapa"
+        ).innerHTML =
+            "✅ Vista espacial capturada: "
+            + mapaSnapshotFecha.toLocaleString("es-CO");
+
+        btn.innerHTML =
+            "📸 Actualizar Captura";
+
+        btn.disabled = false;
+
+    } catch(err) {
+
+        console.error(err);
+
+        btn.innerHTML =
+            "📸 Capturar Vista para Informe";
+
+        btn.disabled = false;
+    }
+} openPdfPreview() {
     if (!window.$ || !$.fn.dataTable || !$.fn.dataTable.isDataTable('#tablaDatos')) {
         alert('La tabla aún está cargando. Espera unos segundos e intenta de nuevo.');
-        return;
+        return;document.getElementById(
+    "pdf-map-capture-date"
+).innerHTML =
+    "Vista espacial capturada: "
+    + mapaSnapshotFecha.toLocaleString("es-CO");
     }
 
     var table = $('#tablaDatos').DataTable();
@@ -858,7 +986,16 @@ async function openPdfPreview() {
     btnText.innerText = '⏳ Capturando mapa…';
 
     /* Captura previa del mapa visible, sin regenerar el enfoque espacial */
-    var mapUrl = mapaSnapshotPDF || await capturarAreaGeoespacialVisible();
+    if (!mapaSnapshotPDF) {
+
+    alert(
+        "Primero debes capturar una vista espacial."
+    );
+
+    return;
+}
+
+var mapUrl = mapaSnapshotPDF;
 
     if (mapUrl) {
         snapImg.src = mapUrl;
