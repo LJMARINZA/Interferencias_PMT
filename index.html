@@ -510,7 +510,7 @@ async function capturarMapaParaPDF() {
             const W = mapEl.offsetWidth  || 600;
             const H = mapEl.offsetHeight || 400;
 
-            const outCanvas  = iframeDoc.createElement('canvas');
+            const outCanvas  = document.createElement('canvas'); // PARENT doc — evita canvas tainted cross-origin
             outCanvas.width  = W;
             outCanvas.height = H;
             const ctx = outCanvas.getContext('2d');
@@ -560,18 +560,18 @@ async function capturarMapaParaPDF() {
             svgClone.setAttribute('width',  svgRect.width  || W);
             svgClone.setAttribute('height', svgRect.height || H);
 
-            var svgStr  = new iframeWin.XMLSerializer().serializeToString(svgClone);
-            var svgBlob = new iframeWin.Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
-            var svgUrl  = iframeWin.URL.createObjectURL(svgBlob);
+            var svgStr  = new XMLSerializer().serializeToString(svgClone); // parent ctx
+            var svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' }); // parent ctx
+            var svgUrl  = URL.createObjectURL(svgBlob); // parent ctx
 
-            var svgImg  = new iframeWin.Image();
+            var svgImg  = new Image(); // parent ctx
             svgImg.onload = function() {
                 ctx.drawImage(svgImg, Math.round(svgX), Math.round(svgY));
-                iframeWin.URL.revokeObjectURL(svgUrl);
+                URL.revokeObjectURL(svgUrl); // parent ctx
                 resolve(outCanvas.toDataURL('image/jpeg', 0.92));
             };
             svgImg.onerror = function() {
-                iframeWin.URL.revokeObjectURL(svgUrl);
+                URL.revokeObjectURL(svgUrl); // parent ctx
                 resolve(outCanvas.toDataURL('image/jpeg', 0.88));
             };
             svgImg.src = svgUrl;
@@ -634,10 +634,25 @@ function iniciarCiclo(table) {
 
 /* =========================================================================
    DOCUMENT READY — punto de entrada único
-   CORRECCIÓN: $.fn.dataTable.ext.search.push y el evento load del iframe
-   se registran aquí para garantizar que jQuery y DataTables ya cargaron.
+   Guard defensivo: si DataTables aún no cargó (CDN lento / offline),
+   reintenta cada 100ms hasta que esté disponible antes de registrar
+   el plugin de filtro y el evento del iframe.
    ========================================================================= */
 $(document).ready(function() {
+
+    /* Esperar a que $.fn.dataTable esté disponible (CDN asíncrono en mobile) */
+    function esperarDataTables(cb, intentos) {
+        intentos = intentos || 0;
+        if (window.$.fn && window.$.fn.dataTable && window.$.fn.dataTable.ext) {
+            cb();
+        } else if (intentos < 100) {
+            setTimeout(function(){ esperarDataTables(cb, intentos + 1); }, 100);
+        } else {
+            console.error('[PMT] DataTables no cargó después de 10s. Verifica la conexión a CDN.');
+        }
+    }
+
+    esperarDataTables(function() {
 
     /* CORRECCIÓN: registrar el evento load del iframe dentro del ready */
     $('#mapaIframe').on('load', function() {
@@ -760,6 +775,8 @@ $(document).ready(function() {
         if (mapaCargado) syncMap();
     })
     .catch(function() { document.getElementById('error-alerta').classList.remove('d-none'); });
+
+    }); /* fin esperarDataTables */
 
 }); /* fin $(document).ready */
 
@@ -901,4 +918,4 @@ function downloadPDF() {
 }
 </script>
 </body>
-    </html>
+</html>
