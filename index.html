@@ -670,113 +670,172 @@ function syncMap() {
 }
 
 /* =========================================================================
-   [AJUSTE 1] CAPTURA DEL MAPA — Solución definitiva al desfase espacial
+   CAPTURA DEL MAPA — Estrategia por capas compositadas dentro del iframe
    -------------------------------------------------------------------------
-   DIAGNÓSTICO RAÍZ:
-   html2canvas renderiza el DOM del documento padre. Cuando el mapa está
-   en un <iframe>, html2canvas reconstruye el árbol DOM del iframe desde
-   cero en un canvas 2D, pero NO puede leer los bitmaps ya renderizados
-   por Leaflet (que usa sus propios canvas/tiles internos con GPU). El
-   resultado es que los tiles de fondo aparecen pero los vectores SVG se
-   desplazan porque html2canvas aplica los transforms CSS de forma
-   diferente a como los aplica el navegador con aceleración hardware.
+   DIAGNÓSTICO RAÍZ (confirmado por las capturas de pantalla):
+   - leaflet-image captura los tiles de fondo ✓ PERO ignora el CSS
+     display:none que syncMap() aplica a los SVG paths → pinta TODOS
+     los trazados o ninguno dependiendo de la versión de la lib.
+   - El resultado visible: fondo cartográfico sin trazados activos.
 
-   SOLUCIÓN — leaflet-image (inyección dinámica en el iframe):
-   leaflet-image opera DENTRO del contexto JS del iframe. Accede
-   directamente al objeto L.Map, itera cada layer (tiles + vectores),
-   y los compone en un canvas 2D limpio con coordenadas absolutas, sin
-   depender de los transforms CSS. El resultado es pixel-perfect.
+   CAUSA REAL: qgis2web renderiza los vectores en un <svg> que está
+   dentro de .leaflet-overlay-pane. Ese SVG tiene los paths con
+   display:none/'' controlados por syncMap(). leaflet-image no lee
+   el DOM SVG, sino que itera los L.Path layers y los redibuja con
+   sus propios métodos _updatePath, que no respetan el display:none
+   aplicado externamente al elemento SVG.
 
-   CADENA DE INTENTOS:
-   1. leaflet-image ya presente en el iframe  →  usarlo directo
-   2. Inyectar leaflet-image.js en el iframe  →  esperar carga y capturar
-   3. Fallback html2canvas + corrección de transforms  →  baja fidelidad
+   SOLUCIÓN DEFINITIVA — Composición manual por capas dentro del iframe:
+   Se ejecuta una función DENTRO del contexto JS del iframe que:
+   1. Crea un <canvas> temporal del tamaño del mapa
+   2. Dibuja encima los tiles de fondo usando drawImage sobre cada
+      <img> o <canvas> del .leaflet-tile-pane (ya renderizados)
+   3. Dibuja encima el SVG overlay (.leaflet-overlay-pane > svg)
+      serializado a Blob → URL → Image, respetando display:none
+      porque el SVG que se serializa ES el DOM actual con el estado
+      visible correcto
+   4. Devuelve el dataURL al documento padre
+
+   Esta estrategia NO depende de libs externas ni de reproduced
+   rendering: captura exactamente lo que el usuario ve en pantalla.
    ========================================================================= */
 async function capturarMapaParaPDF() {
-    return new Promise(async (resolve) => {
+    return new Promise((resolve) => {
         const iframe    = document.getElementById('mapaIframe');
         const iframeWin = iframe.contentWindow;
         const iframeDoc = iframe.contentDocument || iframeWin.document;
 
         if (!iframeWin || !iframeWin.map) { resolve(null); return; }
 
-        /* -------- Intento 1: leaflet-image ya cargado -------- */
-        function runLeafletImage() {
-            return new Promise(res => {
-                if (typeof iframeWin.leafletImage !== 'function') { res(null); return; }
-                iframeWin.leafletImage(iframeWin.map, function(err, canvas) {
-                    res(err || !canvas ? null : canvas.toDataURL('image/jpeg', 0.92));
-                });
-            });
-        }
-
-        /* -------- Intento 2: inyectar leaflet-image dinámicamente -------- */
-        function injectLeafletImage() {
-            return new Promise(res => {
-                if (iframeDoc.getElementById('_li_injected')) { runLeafletImage().then(res); return; }
-                const s  = iframeDoc.createElement('script');
-                s.id     = '_li_injected';
-                s.src    = 'https://cdn.jsdelivr.net/npm/leaflet-image@0.4.0/leaflet-image.js';
-                s.onload = () => {
-                    /* Esperar un frame para que leaflet-image se inicialice */
-                    iframeWin.requestAnimationFrame(() => runLeafletImage().then(res));
-                };
-                s.onerror = () => res(null);
-                iframeDoc.head.appendChild(s);
-            });
-        }
-
-        /* -------- Fallback: html2canvas con corrección de transforms -------- */
-        function fallbackHtml2Canvas() {
-            return new Promise(async res => {
-                const mc = iframeDoc.getElementById('map');
-                if (!mc) { res(null); return; }
-                /* Neutralizar translate3d → left/top para que html2canvas
-                   vea posiciones absolutas en lugar de transforms GPU */
-                const panes = iframeDoc.querySelectorAll('.leaflet-pane, .leaflet-zoom-animated');
-                const saved = [];
-                panes.forEach((p, i) => {
-                    saved[i] = { tr: p.style.transform, l: p.style.left, t: p.style.top };
-                    const m  = (p.style.transform || '').match(/translate3d\(\s*([-\d.]+)px,\s*([-\d.]+)px/);
-                    if (m) {
-                        const cs = iframeWin.getComputedStyle(p);
-                        p.style.left      = (parseFloat(cs.left) || 0) + parseFloat(m[1]) + 'px';
-                        p.style.top       = (parseFloat(cs.top)  || 0) + parseFloat(m[2]) + 'px';
-                        p.style.transform = 'none';
-                    }
-                });
-                /* Esperar repaint antes de capturar */
-                await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        /* Inyectamos y ejecutamos la función de captura DENTRO del iframe */
+        function _captureInsideIframe() {
+            return new Promise((res) => {
                 try {
-                    /* html2canvas está incluido en html2pdf; accedemos a través de la lib global */
-                    const h2c = (typeof html2canvas === 'function')
-                        ? html2canvas
-                        : window.html2pdf && window.html2pdf().set && null; /* no disponible standalone */
-                    if (!h2c) { res(null); return; }
-                    const canvas = await h2c(mc, {
-                        useCORS: true, allowTaint: true,
-                        backgroundColor: '#e9ecef', scale: 1, logging: false
+                    const map        = iframeWin.map;
+                    const mapEl      = iframeDoc.getElementById('map');
+                    const mapRect    = mapEl.getBoundingClientRect();
+                    const W          = Math.round(mapRect.width)  || mapEl.offsetWidth;
+                    const H          = Math.round(mapRect.height) || mapEl.offsetHeight;
+
+                    const outCanvas  = iframeDoc.createElement('canvas');
+                    outCanvas.width  = W;
+                    outCanvas.height = H;
+                    const ctx        = outCanvas.getContext('2d');
+
+                    /* --- PASO 1: fondo blanco base --- */
+                    ctx.fillStyle = '#e8e8e8';
+                    ctx.fillRect(0, 0, W, H);
+
+                    /* --- PASO 2: dibujar todos los tiles del pane de fondo ---
+                       Cada tile es un <img> posicionado absolutamente dentro
+                       de .leaflet-tile-pane. Leemos su posición relativa al
+                       contenedor del mapa y lo dibujamos en el canvas. */
+                    const tilePanes = iframeDoc.querySelectorAll(
+                        '.leaflet-tile-pane .leaflet-layer, ' +
+                        '.leaflet-tile-pane .leaflet-zoom-animated'
+                    );
+
+                    /* Función auxiliar: offset de un elemento relativo a mapEl */
+                    function offsetFromMap(el) {
+                        let x = 0, y = 0, cur = el;
+                        while (cur && cur !== mapEl) {
+                            x += cur.offsetLeft || 0;
+                            y += cur.offsetTop  || 0;
+                            /* Sumar translate3d si existe */
+                            const tr = cur.style.transform || '';
+                            const m  = tr.match(/translate3d\(\s*([-\d.]+)px,\s*([-\d.]+)px/);
+                            if (m) { x += parseFloat(m[1]); y += parseFloat(m[2]); }
+                            cur = cur.offsetParent;
+                        }
+                        return { x, y };
+                    }
+
+                    /* Recoger todos los <img> de tiles visibles */
+                    const tileImgs = iframeDoc.querySelectorAll(
+                        '.leaflet-tile-pane img.leaflet-tile:not(.leaflet-tile-loaded ~ .leaflet-tile)'
+                    );
+                    /* Fallback: todos los img dentro del tile pane */
+                    const allTileImgs = tileImgs.length > 0
+                        ? tileImgs
+                        : iframeDoc.querySelectorAll('.leaflet-tile-pane img');
+
+                    allTileImgs.forEach(img => {
+                        if (!img.complete || img.naturalWidth === 0) return;
+                        /* Calcular posición acumulada incluyendo transforms */
+                        let x = 0, y = 0;
+                        let el = img;
+                        /* Subir hasta el contenedor del mapa acumulando offsets + transforms */
+                        const chain = [];
+                        while (el && el !== mapEl) { chain.push(el); el = el.parentElement; }
+                        chain.reverse().forEach(node => {
+                            const tr = (node.style && node.style.transform) || '';
+                            const m  = tr.match(/translate3d\(\s*([-\d.]+)px,\s*([-\d.]+)px/);
+                            if (m) { x += parseFloat(m[1]); y += parseFloat(m[2]); }
+                            if (node !== img) {
+                                x += node.offsetLeft || 0;
+                                y += node.offsetTop  || 0;
+                            }
+                        });
+                        x += img.offsetLeft || 0;
+                        y += img.offsetTop  || 0;
+                        try {
+                            ctx.drawImage(img, Math.round(x), Math.round(y),
+                                          img.width || 256, img.height || 256);
+                        } catch(e) { /* CORS tile ignorado */ }
                     });
-                    res(canvas.toDataURL('image/jpeg', 0.85));
-                } catch(e) {
-                    console.warn('[PDF] Fallback html2canvas falló:', e);
+
+                    /* --- PASO 3: serializar el SVG overlay COMO ESTÁ en el DOM ---
+                       Este es el punto clave: el SVG contiene los paths con
+                       display:none/'' tal como los dejó syncMap(). Al serializar
+                       el DOM actual, obtenemos exactamente los trazados visibles. */
+                    const svgEl = iframeDoc.querySelector(
+                        '.leaflet-overlay-pane svg, .leaflet-pane.leaflet-overlay-pane svg'
+                    );
+
+                    if (!svgEl) {
+                        /* No hay SVG overlay → devolver lo que tenemos (solo tiles) */
+                        res(outCanvas.toDataURL('image/jpeg', 0.92));
+                        return;
+                    }
+
+                    /* Posición del SVG dentro del mapa */
+                    const svgRect = svgEl.getBoundingClientRect();
+                    const mapClientRect = mapEl.getBoundingClientRect();
+                    const svgOffX = svgRect.left - mapClientRect.left;
+                    const svgOffY = svgRect.top  - mapClientRect.top;
+
+                    /* Clonar el SVG para añadirle xmlns antes de serializar */
+                    const svgClone = svgEl.cloneNode(true);
+                    svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                    /* Fijar viewBox al tamaño real del SVG para evitar recortes */
+                    svgClone.setAttribute('width',  svgRect.width  || svgEl.getAttribute('width')  || W);
+                    svgClone.setAttribute('height', svgRect.height || svgEl.getAttribute('height') || H);
+
+                    const svgString = new iframeWin.XMLSerializer().serializeToString(svgClone);
+                    const svgBlob   = new iframeWin.Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+                    const svgUrl    = iframeWin.URL.createObjectURL(svgBlob);
+
+                    const svgImg = new iframeWin.Image();
+                    svgImg.onload = function() {
+                        ctx.drawImage(svgImg, Math.round(svgOffX), Math.round(svgOffY));
+                        iframeWin.URL.revokeObjectURL(svgUrl);
+                        res(outCanvas.toDataURL('image/jpeg', 0.92));
+                    };
+                    svgImg.onerror = function() {
+                        /* Si falla la carga del SVG, devolver solo los tiles */
+                        iframeWin.URL.revokeObjectURL(svgUrl);
+                        res(outCanvas.toDataURL('image/jpeg', 0.88));
+                    };
+                    svgImg.src = svgUrl;
+
+                } catch(err) {
+                    console.warn('[PDF] Error en captura por capas:', err);
                     res(null);
-                } finally {
-                    /* Restaurar transforms originales */
-                    panes.forEach((p, i) => {
-                        p.style.transform = saved[i].tr;
-                        p.style.left      = saved[i].l;
-                        p.style.top       = saved[i].t;
-                    });
                 }
             });
         }
 
-        /* Cadena de intentos */
-        let url = await runLeafletImage();
-        if (!url) url = await injectLeafletImage();
-        if (!url) url = await fallbackHtml2Canvas();
-        resolve(url);
+        _captureInsideIframe().then(resolve);
     });
 }
 
