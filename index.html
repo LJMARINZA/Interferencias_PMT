@@ -484,100 +484,91 @@ function syncMap() {
 /* =========================================================================
    CAPTURA DEL MAPA PARA EL PDF
    -------------------------------------------------------------------------
-   ESTRATEGIA DEFINITIVA — Composición manual dentro del iframe:
-   Operamos DENTRO del contexto JS del iframe para:
-   1. Capturar los tiles con drawImage (respetando CORS cross-origin tiles)
-   2. Serializar el SVG overlay TAL COMO ESTÁ en el DOM (display:none ya
-      aplicado por syncMap), convirtiéndolo en imagen via Blob URL
-   3. Componer ambas capas en un <canvas> y devolver dataURL
+   DIAGNÓSTICO DEFINITIVO:
+   Los tiles de OpenStreetMap son imágenes cross-origin SIN cabecera CORS.
+   drawImage() sobre ellas tainta el canvas y toDataURL() devuelve blanco.
 
-   Esta estrategia evita html2canvas sobre el iframe (que no puede acceder
-   al DOM del iframe en algunos navegadores móviles) y es pixel-perfect
-   porque captura exactamente lo que el usuario ve en pantalla.
+   SOLUCIÓN: Inyectar html2canvas DENTRO del iframe y ejecutarlo ahí.
+   Desde el contexto del iframe, el #map es un elemento LOCAL (mismo origen).
+   html2canvas con allowTaint:true ignora la restricción cross-origin en tiles.
+   El canvas queda en el contexto del iframe → su toDataURL() funciona sin
+   restricciones → se pasa el dataURL al padre como string.
    ========================================================================= */
 async function capturarMapaParaPDF() {
-    return new Promise((resolve) => {
+    return new Promise(function(resolve) {
         try {
-            const iframe    = document.getElementById('mapaIframe');
-            const iframeWin = iframe.contentWindow;
-            const iframeDoc = iframe.contentDocument || iframeWin.document;
+            var iframe    = document.getElementById('mapaIframe');
+            var iframeWin = iframe.contentWindow;
+            var iframeDoc = iframe.contentDocument || iframeWin.document;
 
             if (!iframeWin || !iframeWin.map) { resolve(null); return; }
 
-            const mapEl  = iframeDoc.getElementById('map');
-            if (!mapEl)  { resolve(null); return; }
+            var mapEl = iframeDoc.getElementById('map');
+            if (!mapEl) { resolve(null); return; }
 
-            const W = mapEl.offsetWidth  || 600;
-            const H = mapEl.offsetHeight || 400;
+            /* Función que ejecuta html2canvas YA CARGADO en el iframe */
+            function ejecutarCaptura() {
+                iframeWin.html2canvas(mapEl, {
+                    allowTaint:      true,
+                    useCORS:         false,
+                    backgroundColor: '#e8eaed',
+                    scale:           1,
+                    logging:         false,
+                    imageTimeout:    0,
+                    removeContainer: true
+                }).then(function(canvas) {
+                    try {
+                        /* toDataURL funciona porque canvas y mapEl son del mismo origen */
+                        resolve(canvas.toDataURL('image/jpeg', 0.92));
+                    } catch(e) {
+                        console.warn('[PDF] toDataURL error:', e);
+                        resolve(null);
+                    }
+                }).catch(function(e) {
+                    console.warn('[PDF] html2canvas error:', e);
+                    resolve(null);
+                });
+            }
 
-            const outCanvas  = document.createElement('canvas'); // PARENT doc — evita canvas tainted cross-origin
-            outCanvas.width  = W;
-            outCanvas.height = H;
-            const ctx = outCanvas.getContext('2d');
-
-            /* PASO 1 — Fondo base */
-            ctx.fillStyle = '#e8eaed';
-            ctx.fillRect(0, 0, W, H);
-
-            /* PASO 2 — Dibujar tiles del fondo
-               Cada <img> de tile tiene posición absoluta dentro de su layer.
-               Recorremos la jerarquía sumando offsetLeft/Top y translate3d. */
-            const allTileImgs = iframeDoc.querySelectorAll('.leaflet-tile-pane img');
-            allTileImgs.forEach(function(img) {
-                if (!img.complete || img.naturalWidth === 0) return;
-                var x = 0, y = 0, el = img;
-                while (el && el !== mapEl) {
-                    x += el.offsetLeft || 0;
-                    y += el.offsetTop  || 0;
-                    var tr = (el.style && el.style.transform) || '';
-                    var m  = tr.match(/translate3d\(\s*([-\d.]+)px,\s*([-\d.]+)px/);
-                    if (m) { x += parseFloat(m[1]); y += parseFloat(m[2]); }
-                    el = el.offsetParent || el.parentElement;
-                }
-                try { ctx.drawImage(img, Math.round(x), Math.round(y), img.width || 256, img.height || 256); }
-                catch(e) { /* tile CORS bloqueado, se ignora */ }
-            });
-
-            /* PASO 3 — Serializar SVG overlay COMO ESTÁ (display:none respetado)
-               El SVG del overlay-pane contiene los paths con el estado visual
-               exacto que dejó syncMap(). Al serializar el DOM actual obtenemos
-               solo los trazados que son visibles en pantalla. */
-            var svgEl = iframeDoc.querySelector('.leaflet-overlay-pane svg');
-            if (!svgEl) {
-                resolve(outCanvas.toDataURL('image/jpeg', 0.90));
+            /* Si html2canvas ya está en el iframe (segunda generación de PDF), usarlo directo */
+            if (typeof iframeWin.html2canvas === 'function') {
+                ejecutarCaptura();
                 return;
             }
 
-            /* Posición del SVG relativa al contenedor del mapa */
-            var svgRect = svgEl.getBoundingClientRect();
-            var mapRect = mapEl.getBoundingClientRect();
-            var svgX = svgRect.left - mapRect.left;
-            var svgY = svgRect.top  - mapRect.top;
-
-            /* Clonar y preparar el SVG para serialización */
-            var svgClone = svgEl.cloneNode(true);
-            svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-            svgClone.setAttribute('width',  svgRect.width  || W);
-            svgClone.setAttribute('height', svgRect.height || H);
-
-            var svgStr  = new XMLSerializer().serializeToString(svgClone); // parent ctx
-            var svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' }); // parent ctx
-            var svgUrl  = URL.createObjectURL(svgBlob); // parent ctx
-
-            var svgImg  = new Image(); // parent ctx
-            svgImg.onload = function() {
-                ctx.drawImage(svgImg, Math.round(svgX), Math.round(svgY));
-                URL.revokeObjectURL(svgUrl); // parent ctx
-                resolve(outCanvas.toDataURL('image/jpeg', 0.92));
-            };
-            svgImg.onerror = function() {
-                URL.revokeObjectURL(svgUrl); // parent ctx
-                resolve(outCanvas.toDataURL('image/jpeg', 0.88));
-            };
-            svgImg.src = svgUrl;
+            /* Primera vez: inyectar html2canvas en el iframe */
+            if (!iframeDoc.getElementById('__h2c__')) {
+                var s   = iframeDoc.createElement('script');
+                s.id    = '__h2c__';
+                s.src   = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                s.onload = function() {
+                    setTimeout(function() {
+                        if (typeof iframeWin.html2canvas === 'function') {
+                            ejecutarCaptura();
+                        } else {
+                            resolve(null);
+                        }
+                    }, 300);
+                };
+                s.onerror = function() { resolve(null); };
+                iframeDoc.head.appendChild(s);
+            } else {
+                /* Script ya inyectado pero esperando carga: polling */
+                var t = 0;
+                var poll = setInterval(function() {
+                    t++;
+                    if (typeof iframeWin.html2canvas === 'function') {
+                        clearInterval(poll);
+                        ejecutarCaptura();
+                    } else if (t > 40) {
+                        clearInterval(poll);
+                        resolve(null);
+                    }
+                }, 100);
+            }
 
         } catch(err) {
-            console.warn('[PDF] capturarMapaParaPDF error:', err);
+            console.warn('[PDF] capturarMapaParaPDF excepcion:', err);
             resolve(null);
         }
     });
