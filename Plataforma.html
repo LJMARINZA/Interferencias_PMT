@@ -15,13 +15,13 @@
     <style>
         body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .epm-header { background-color: white; border-bottom: 4px solid #009300; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 8px 20px; }
-        .epm-title { color: #009300; font-weight: bold; font-size: 22px; margin-left: 15px; vertical-align: middle; }
+        .epm-title { color: #009300; font-weight: bold; font-size: 19px; margin-left: 15px; vertical-align: middle; line-height: 1.15; }
         .epm-card-header { background-color: #009300; color: white; font-weight: bold; padding: 8px 15px; font-size: 0.95rem; }
         .epm-btn { background-color: #b7c200; color: #000; font-weight: bold; border: none; transition: 0.3s; }
         .epm-btn:hover { background-color: #99a800; transform: translateY(-1px); }
         .epm-btn-play { background-color: #009300; color: white; font-weight: bold; }
 
-        .map-wrapper { height: 60vh; border: 3px solid #009300; border-radius: 8px; margin-bottom: 15px; overflow: hidden; position: relative; background: #e9ecef; }
+        .map-wrapper { height: 100%; min-height: 72vh; border: 3px solid #009300; border-radius: 8px; margin-bottom: 0; overflow: hidden; position: relative; background: #e9ecef; }
         .table-wrapper { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid #b7c200; }
         .table-dark { background-color: #008c6b !important; }
         .temporal-box { background-color: #e9f5e9; border: 2px solid #009300; border-radius: 8px; padding: 10px 15px; margin-bottom: 15px; }
@@ -99,7 +99,7 @@
 <div class="epm-header mb-3 d-flex justify-content-between align-items-center">
     <div>
         <img src="logo_epm.jpg" onerror="this.src='logo_epm.png'" alt="Logo EPM" style="height: 45px;">
-        <span class="epm-title">Visor Inteligente de Gestión PMT</span>
+        <span class="epm-title">PLATAFORMA DE CONTROL Y ARTICULACIÓN DE PMTs</span>
     </div>
     
     <div class="d-flex gap-2">
@@ -114,79 +114,92 @@
         ⚠️ ATENCIÓN: El navegador bloqueó los datos (CORS). Sube esta carpeta a GitHub y ábrela desde el enlace web.
     </div>
 
-    <div class="temporal-box">
-        <div class="row g-2 align-items-end">
-            <div class="col-md-2">
-                <label class="form-label fw-bold text-success">⏱️ Inicio Recorrido:</label>
-                <input type="date" id="repInicio" class="form-control form-control-sm">
+    <!-- ZONA MEDIA: dos columnas. Izquierda = controles (1/3). Derecha = mapa vertical (2/3). -->
+    <div class="row g-3 mb-3 align-items-stretch">
+
+        <!-- COLUMNA IZQUIERDA: recorrido temporal + filtros, apilados -->
+        <div class="col-12 col-lg-4 d-flex flex-column">
+
+            <div class="temporal-box mb-3">
+                <div class="row g-2 align-items-end">
+                    <div class="col-6">
+                        <label class="form-label fw-bold text-success mb-1">⏱️ Inicio Recorrido:</label>
+                        <input type="date" id="repInicio" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-bold text-success mb-1">Fin Recorrido:</label>
+                        <input type="date" id="repFin" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-bold mb-1">Avanzar cada:</label>
+                        <select id="velocidadPaso" class="form-select form-select-sm">
+                            <option value="1">1 Día</option>
+                            <option value="7">1 Semana</option>
+                            <option value="30">1 Mes</option>
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-bold mb-1">Velocidad:</label>
+                        <select id="velocidadReproduccion" class="form-select form-select-sm">
+                            <option value="2400">0.5X (Lento)</option>
+                            <option value="1200" selected>1X (Normal)</option>
+                            <option value="600">2X (Rápido)</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <button id="btnPlay" class="btn btn-sm epm-btn-play w-100">▶ Iniciar Recorrido</button>
+                    </div>
+                    <div class="col-12 text-center d-flex align-items-center justify-content-center gap-2 mt-1">
+                        <span class="fw-bold text-secondary" style="font-size: 0.85rem;">En Mapa:</span>
+                        <div id="fechaActualVisual" class="fecha-activa-display">---</div>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-2">
-                <label class="form-label fw-bold text-success">Fin Recorrido:</label>
-                <input type="date" id="repFin" class="form-control form-control-sm">
+
+            <div class="card flex-grow-1" style="border-color: #009300;">
+                <div class="card-header epm-card-header">⚙️ Panel de Filtros Específicos</div>
+                <div class="card-body py-2">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-6" style="overflow:hidden; min-width:0;">
+                            <label class="fw-bold text-success form-label mb-1">Contratista:</label>
+                            <select id="filtroContratista" class="form-select form-select-sm" multiple></select>
+                        </div>
+                        <div class="col-6" style="overflow:hidden; min-width:0;">
+                            <label class="fw-bold text-success form-label mb-1">Contrato:</label>
+                            <select id="filtroContrato" class="form-select form-select-sm" multiple></select>
+                        </div>
+                        <div class="col-6" style="overflow:hidden; min-width:0;">
+                            <label class="fw-bold text-success form-label mb-1">Frente:</label>
+                            <select id="filtroFrente" class="form-select form-select-sm" multiple></select>
+                        </div>
+                        <div class="col-6" style="overflow:hidden; min-width:0;">
+                            <label class="fw-bold text-success form-label mb-1">Interferencia/Estado:</label>
+                            <select id="filtroInterferencia" class="form-select form-select-sm" multiple></select>
+                        </div>
+                        <div class="col-6">
+                            <label class="fw-bold text-secondary form-label mb-1">F. Inicio:</label>
+                            <input type="date" id="filtroInicio" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-6">
+                            <label class="fw-bold text-secondary form-label mb-1">F. Fin:</label>
+                            <input type="date" id="filtroFin" class="form-control form-control-sm">
+                        </div>
+                        <div class="col-12">
+                            <button id="btnLimpiar" class="btn epm-btn btn-sm w-100">🧹 Limpiar Filtros</button>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-2">
-                <label class="form-label fw-bold">Avanzar cada:</label>
-                <select id="velocidadPaso" class="form-select form-select-sm">
-                    <option value="1">1 Día</option>
-                    <option value="7">1 Semana</option>
-                    <option value="30">1 Mes</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label fw-bold">Velocidad:</label>
-                <select id="velocidadReproduccion" class="form-select form-select-sm">
-                    <option value="2400">0.5X (Lento)</option>
-                    <option value="1200" selected>1X (Normal)</option>
-                    <option value="600">2X (Rápido)</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <button id="btnPlay" class="btn btn-sm epm-btn-play w-100">▶ Iniciar Recorrido</button>
-            </div>
-            <div class="col-md-2 text-center d-flex align-items-center justify-content-center gap-2">
-                <span class="fw-bold text-secondary" style="font-size: 0.85rem;">En Mapa:</span>
-                <div id="fechaActualVisual" class="fecha-activa-display">---</div>
+
+        </div>
+
+        <!-- COLUMNA DERECHA: mapa vertical -->
+        <div class="col-12 col-lg-8">
+            <div class="map-wrapper h-100">
+                <iframe id="mapaIframe" src="about:blank" width="100%" height="100%" style="border:none;"></iframe>
             </div>
         </div>
-    </div>
 
-    <div class="card mb-3" style="border-color: #009300;">
-        <div class="card-header epm-card-header">⚙️ Panel de Filtros Específicos</div>
-        <div class="card-body py-2">
-            <div class="row g-2 align-items-end">
-                <div class="col-md-2" style="overflow:hidden; min-width:0;">
-                    <label class="fw-bold text-success form-label mb-1">Contratista:</label>
-                    <select id="filtroContratista" class="form-select form-select-sm" multiple></select>
-                </div>
-                <div class="col-md-2" style="overflow:hidden; min-width:0;">
-                    <label class="fw-bold text-success form-label mb-1">Contrato:</label>
-                    <select id="filtroContrato" class="form-select form-select-sm" multiple></select>
-                </div>
-                <div class="col-md-2" style="overflow:hidden; min-width:0;">
-                    <label class="fw-bold text-success form-label mb-1">Frente:</label>
-                    <select id="filtroFrente" class="form-select form-select-sm" multiple></select>
-                </div>
-                <div class="col-md-2" style="overflow:hidden; min-width:0;">
-                    <label class="fw-bold text-success form-label mb-1">Interferencia/Estado:</label>
-                    <select id="filtroInterferencia" class="form-select form-select-sm" multiple></select>
-                </div>
-                <div class="col-md-1">
-                    <label class="fw-bold text-secondary form-label mb-1">F. Inicio:</label>
-                    <input type="date" id="filtroInicio" class="form-control form-control-sm">
-                </div>
-                <div class="col-md-1">
-                    <label class="fw-bold text-secondary form-label mb-1">F. Fin:</label>
-                    <input type="date" id="filtroFin" class="form-control form-control-sm">
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button id="btnLimpiar" class="btn epm-btn btn-sm w-100">🧹 Limpiar Filtros</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="map-wrapper">
-        <iframe id="mapaIframe" src="about:blank" width="100%" height="100%" style="border:none;"></iframe>
     </div>
 
     <div class="table-wrapper">
@@ -221,6 +234,8 @@
                 Agrupar críticas (mismo Contratista + Contrato + Período)
             </label>
         </div>
+        <input type="file" id="inputMapaImg" accept="image/*" style="display:none;" onchange="cargarImagenMapa(event)">
+        <button id="btnAdjuntarMapa" onclick="document.getElementById('inputMapaImg').click()" class="btn btn-light fw-bold shadow">📎 Adjuntar imagen del mapa</button>
         <button onclick="closePdfPreview()" class="btn btn-secondary fw-bold shadow">✖ Cancelar</button>
         <button id="btnConfirmPdf" onclick="downloadPDF()" class="btn epm-btn fw-bold shadow">📥 Confirmar Descarga PDF</button>
     </div>
@@ -229,6 +244,7 @@
         <div class="pdf-header-banner">
             <div>
                 <h1 class="pdf-header-title">INFORME TÉCNICO DE GESTIÓN PMT</h1>
+                <div style="font-size:12px; font-weight:bold; letter-spacing:0.3px; opacity:0.95; margin-top:2px;">ÁREA CENTRO DE GESTIÓN SERVICIOS TÉCNICOS</div>
                 <div class="pdf-header-date" id="pdf-date-gen"></div>
             </div>
             <div style="background:white; padding:5px; border-radius:4px;">
@@ -259,6 +275,13 @@
             </div>
 
             <div id="pdf-executive-summary" style="font-size:11px; text-align:justify; margin-bottom:20px; line-height:1.5; background:#f8f9fa; padding:10px; border-radius:4px; border:1px solid #e9ecef;"></div>
+
+            <div id="pdf-mapa-section" style="display:none; margin-bottom:20px; page-break-inside:avoid;">
+                <div class="pdf-section-title">🗺️ Vista del Mapa (según filtros aplicados)</div>
+                <div style="text-align:center;">
+                    <img id="pdf-mapa-img" src="" alt="Mapa" style="max-width:100%; max-height:120mm; border:1px solid #dee2e6; border-radius:4px;">
+                </div>
+            </div>
 
             <div id="pdf-criticos-section" style="display:none;">
                 <div class="pdf-section-title" style="color:#d56b00; border-bottom-color:#e8c9a8;">⚠️ Detalle de Interferencias Críticas</div>
@@ -314,6 +337,30 @@ var reproduccionActiva  = false;
 var reproduccionPausada = false;
 var fechaReproduccion   = null;
 var reproductorInterval = null;
+var imagenMapaPDF       = null;   // imagen del mapa adjuntada manualmente para el informe
+
+/* Recibe la imagen que el usuario adjunta (recorte del mapa) y la guarda para el PDF */
+function cargarImagenMapa(evento) {
+    var archivo = evento.target.files && evento.target.files[0];
+    if (!archivo) return;
+    var lector = new FileReader();
+    lector.onload = function(e) {
+        imagenMapaPDF = e.target.result;             // imagen en formato base64
+        var btn = document.getElementById('btnAdjuntarMapa');
+        if (btn) { btn.innerHTML = '✅ Imagen adjunta (cambiar)'; btn.classList.remove('btn-light'); btn.classList.add('epm-btn'); }
+        aplicarImagenMapaEnInforme();                // la muestra en la vista previa
+    };
+    lector.readAsDataURL(archivo);
+}
+
+/* Muestra u oculta la sección de la imagen del mapa dentro del informe */
+function aplicarImagenMapaEnInforme() {
+    var sec = document.getElementById('pdf-mapa-section');
+    var img = document.getElementById('pdf-mapa-img');
+    if (!sec || !img) return;
+    if (imagenMapaPDF) { img.src = imagenMapaPDF; sec.style.display = 'block'; }
+    else { img.src = ''; sec.style.display = 'none'; }
+}
 
 /* =====================================================
    parseCSVRow (BLOQUE INTACTO ANTI-CORS)
@@ -896,6 +943,8 @@ function openPdfPreview() {
 
     document.getElementById('pdf-progress-container').innerHTML = progressHTML;
     document.getElementById('pdf-table-body').innerHTML         = pdfRows;
+
+    aplicarImagenMapaEnInforme();   // muestra la imagen del mapa si el usuario la adjuntó
 
     document.getElementById('pdfModal').style.display = 'flex';
 
